@@ -26,7 +26,8 @@
 
 #define SUNXI_PWM_PERIOD_80PCT		0x04af03c0
 
-#if defined CONFIG_MACH_SUN4I || defined CONFIG_MACH_SUN5I
+#if defined CONFIG_MACH_SUN4I || defined CONFIG_MACH_SUN5I || \
+    defined CONFIG_MACH_SUN7I
 #define SUNXI_PWM_PIN0			SUNXI_GPB(2)
 #define SUNXI_PWM_MUX			SUN4I_GPB_PWM
 #endif
