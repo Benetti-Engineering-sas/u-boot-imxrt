@@ -588,7 +588,11 @@ static void sunxi_lcdc_panel_enable(void)
 	pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_POWER);
 	if (pin >= 0) {
 		gpio_request(pin, "lcd_power");
+#ifdef CONFIG_VIDEO_LCD_POWER_ACTIVE_LOW
+		gpio_direction_output(pin, 0);
+#else
 		gpio_direction_output(pin, 1);
+#endif
 	}
 
 	if (reset_pin >= 0)

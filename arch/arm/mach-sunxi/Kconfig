@@ -867,6 +867,13 @@ config VIDEO_LCD_POWER
 	Set the power enable pin for the LCD panel. This takes a string in the
 	format understood by sunxi_name_to_gpio, e.g. PH1 for pin 1 of port H.
 
+config VIDEO_LCD_POWER_ACTIVE_LOW
+	bool "LCD panel power enable pin is inverted"
+	depends on VIDEO_SUNXI
+	default n
+	---help---
+	Set this if the lcd power pin is active low.
+
 config VIDEO_LCD_RESET
 	string "LCD panel reset pin"
 	depends on VIDEO_SUNXI
