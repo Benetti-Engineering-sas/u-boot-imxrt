@@ -1,0 +1,6 @@
+TEKVOX TEK4 BOARD
+M:	Giulio Benetti <giulio.benetti@tekvox.com>
+S:	Maintained
+F:	board/tekvox/tek4/
+F:	include/configs/tekvox-tek4.h
+F:	configs/tekvox-tek4_defconfig

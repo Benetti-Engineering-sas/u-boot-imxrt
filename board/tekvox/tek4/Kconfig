@@ -1,0 +1,15 @@
+if TARGET_TEKVOX_TEK4
+
+config SYS_BOARD
+	default "tek4"
+
+config SYS_VENDOR
+	default "tekvox"
+
+config SYS_CONFIG_NAME
+	default "tekvox-tek4"
+
+config IMX_CONFIG
+	default "board/tekvox/tek4/imximage.cfg"
+
+endif
