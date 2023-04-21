@@ -9,6 +9,27 @@
 #include <phy.h>
 #include <linux/delay.h>
 
+/* Broadcom BCM5221 */
+#define MII_BCM5221_INTREG		0x1a	/* Interrupt register */
+#define MII_BCM5221_IR_MASK		0x0100	/* Mask all interrupts */
+#define MII_BCM5221_IR_LINK_EN		0x0200	/* Link status change enable */
+#define MII_BCM5221_IR_SPEED_EN	0x0400	/* Link speed change enable */
+#define MII_BCM5221_IR_DUPLEX_EN	0x0800	/* Duplex mode change enable */
+#define MII_BCM5221_IR_ENABLE		0x4000	/* Interrupt enable */
+
+#define MII_BCM5221_BRCMTEST		0x1f	/* Brcm test register */
+#define MII_BCM5221_BT_SRE		0x0080	/* Shadow register enable */
+
+#define MII_BCM5221_AE_GSR		0x1c    /* BCM5221 Auxiliary Error &
+						 * General Status Register
+						 */
+#define MII_BCM5221_AE_GSR_DIS_MDIX	0x0800	/* BCM5221 Disable MDIX */
+#define MII_BCM5221_SHDW_AM4_FLPM	0x0002	/* BCM5221 Force Low Power
+						 * Mode
+						 */
+
+#define MII_BCM5221_SHDW_AUXMODE4	0x1a	/* Auxiliary mode 4 */
+
 /* Broadcom BCM54xx -- taken from linux sungem_phy */
 #define MIIM_BCM54xx_AUXCNTL			0x18
 #define MIIM_BCM54xx_AUXCNTL_ENCODE(val) (((val & 0x7) << 12)|(val & 0x7))
@@ -41,6 +62,75 @@
 
 #define BCM54810_SHD_CLK_CTL				0x3
 #define BCM54810_SHD_CLK_CTL_GTXCLK_EN			BIT(9)
+
+static int bcm_bcm5221_config(struct phy_device *phydev)
+{
+	int reg, err, err2, brcmtest;
+
+	phy_reset(phydev);
+
+	/* The datasheet indicates the PHY needs up to 1us to complete a reset,
+	 * build some slack here.
+	 */
+	udelay(2000);
+
+	/* The PHY requires 65 MDC clock cycles to complete a write operation
+	 * and turnaround the line properly.
+	 *
+	 * We ignore -EIO here as the MDIO controller (e.g.: mdio-bcm-unimac)
+	 * may flag the lack of turn-around as a read failure. This is
+	 * particularly true with this combination since the MDIO controller
+	 * only used 64 MDC cycles. This is not a critical failure in this
+	 * specific case and it has no functional impact otherwise, so we let
+	 * that one go through. If there is a genuine bus error, the next read
+	 * of MII_BCM5221_INTREG will error out.
+	 */
+	err = phy_read(phydev, MDIO_DEVAD_NONE, MII_BMCR);
+	if (err < 0 && err != -EIO)
+		return err;
+
+	reg = phy_read(phydev, MDIO_DEVAD_NONE, MII_BCM5221_INTREG);
+	if (reg < 0)
+		return reg;
+
+	/* Mask interrupts globally since we don't use interrupt */
+	reg = MII_BCM5221_IR_MASK;
+
+	err = phy_write(phydev, MDIO_DEVAD_NONE, MII_BCM5221_INTREG, reg);
+	if (err < 0)
+		return err;
+
+	/* Enable auto MDIX */
+	err = phy_modify(phydev, MDIO_DEVAD_NONE, MII_BCM5221_AE_GSR,
+			 MII_BCM5221_AE_GSR_DIS_MDIX, 0);
+	if (err < 0)
+		return err;
+
+	/* Enable shadow register access */
+	brcmtest = phy_read(phydev, MDIO_DEVAD_NONE, MII_BCM5221_BRCMTEST);
+	if (brcmtest < 0)
+		return brcmtest;
+
+	reg = brcmtest | MII_BCM5221_BT_SRE;
+
+	err = phy_write(phydev, MDIO_DEVAD_NONE, MII_BCM5221_BRCMTEST, reg);
+	if (err < 0)
+		return err;
+
+	/* Exit low power mode */
+	err = phy_modify(phydev, MDIO_DEVAD_NONE, MII_BCM5221_SHDW_AUXMODE4,
+			 MII_BCM5221_SHDW_AM4_FLPM, 0);
+	if (err < 0)
+		goto done;
+
+done:
+	/* Disable shadow register access */
+	err2 = phy_write(phydev, MDIO_DEVAD_NONE, MII_BCM5221_BRCMTEST, brcmtest);
+	if (!err)
+		err = err2;
+
+	return err;
+}
 
 static int bcm54xx_auxctl_read(struct phy_device *phydev, u16 regnum)
 {
@@ -110,6 +200,7 @@ static int bcm54xx_config_clock_delay(struct phy_device *phydev)
 
 	return 0;
 }
+
 
 static void bcm_phy_write_misc(struct phy_device *phydev,
 			       u16 reg, u16 chl, u16 value)
@@ -399,6 +490,17 @@ static int bcm5482_startup(struct phy_device *phydev)
 	/* Parse BCM54xx copper aux status register */
 	return bcm54xx_parse_status(phydev);
 }
+
+
+U_BOOT_PHY_DRIVER(bcm5221) = {
+	.name = "Broadcom BCM5221 PHY",
+	.uid = 0x004061e0,
+	.mask = 0xfffff0,
+	.features = PHY_BASIC_FEATURES,
+	.config = &bcm_bcm5221_config,
+	.startup = &genphy_startup,
+	.shutdown = &genphy_shutdown,
+};
 
 U_BOOT_PHY_DRIVER(bcm54210e) = {
 	.name = "Broadcom BCM54210E",
