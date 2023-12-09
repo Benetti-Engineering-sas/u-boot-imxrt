@@ -65,7 +65,7 @@
 
 static int bcm_bcm5221_config(struct phy_device *phydev)
 {
-	int reg, err, err2, brcmtest;
+	int reg, err;
 
 	phy_reset(phydev);
 
@@ -89,14 +89,14 @@ static int bcm_bcm5221_config(struct phy_device *phydev)
 	if (err < 0 && err != -EIO)
 		return err;
 
+	/* Read to clear status bits */
 	reg = phy_read(phydev, MDIO_DEVAD_NONE, MII_BCM5221_INTREG);
 	if (reg < 0)
 		return reg;
 
 	/* Mask interrupts globally since we don't use interrupt */
-	reg = MII_BCM5221_IR_MASK;
-
-	err = phy_write(phydev, MDIO_DEVAD_NONE, MII_BCM5221_INTREG, reg);
+	err = phy_write(phydev, MDIO_DEVAD_NONE, MII_BCM5221_INTREG,
+			MII_BCM5221_IR_MASK);
 	if (err < 0)
 		return err;
 
@@ -107,13 +107,8 @@ static int bcm_bcm5221_config(struct phy_device *phydev)
 		return err;
 
 	/* Enable shadow register access */
-	brcmtest = phy_read(phydev, MDIO_DEVAD_NONE, MII_BCM5221_BRCMTEST);
-	if (brcmtest < 0)
-		return brcmtest;
-
-	reg = brcmtest | MII_BCM5221_BT_SRE;
-
-	err = phy_write(phydev, MDIO_DEVAD_NONE, MII_BCM5221_BRCMTEST, reg);
+	err = phy_set_bits(phydev, MDIO_DEVAD_NONE, MII_BCM5221_BRCMTEST,
+			   MII_BCM5221_BT_SRE);
 	if (err < 0)
 		return err;
 
@@ -125,11 +120,8 @@ static int bcm_bcm5221_config(struct phy_device *phydev)
 
 done:
 	/* Disable shadow register access */
-	err2 = phy_write(phydev, MDIO_DEVAD_NONE, MII_BCM5221_BRCMTEST, brcmtest);
-	if (!err)
-		err = err2;
-
-	return err;
+	return phy_clear_bits(phydev, MDIO_DEVAD_NONE, MII_BCM5221_BRCMTEST,
+			      MII_BCM5221_BT_SRE);
 }
 
 static int bcm54xx_auxctl_read(struct phy_device *phydev, u16 regnum)
