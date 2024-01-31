@@ -1,0 +1,8 @@
+EVB-RK3562
+M:	Giulio Benetti <giulio.benetti@benettiengineering.com>
+S:	Maintained
+F:	board/rockchip/evb_rk3562
+F:	include/configs/evb_rk3562.h
+F:	configs/evb-rk3562_defconfig
+F:	arch/arm/dts/rk3562-evb-u-boot.dtsi
+F:	arch/arm/dts/rk3562-evb.dts

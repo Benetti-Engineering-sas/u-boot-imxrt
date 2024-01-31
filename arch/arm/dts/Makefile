@@ -145,6 +145,9 @@ dtb-$(CONFIG_ROCKCHIP_RK3399) += \
 	rk3399-rockpro64.dtb \
 	rk3399pro-rock-pi-n10.dtb
 
+dtb-$(CONFIG_ROCKCHIP_RK3562) += \
+	rk3562-evb.dtb
+
 dtb-$(CONFIG_ROCKCHIP_RK3568) += \
 	rk3566-anbernic-rgxx3.dtb \
 	rk3566-pinetab2-v0.1.dtb \
