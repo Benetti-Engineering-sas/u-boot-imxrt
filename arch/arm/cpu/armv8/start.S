@@ -53,6 +53,7 @@ _bss_end_ofs:
 	.quad	__bss_end - _start
 
 reset:
+	b reset
 	/* Allow the board to save important registers */
 	b	save_boot_params
 .globl	save_boot_params_ret
