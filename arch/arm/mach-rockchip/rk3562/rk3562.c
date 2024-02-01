@@ -13,8 +13,8 @@
 #include <asm/arch-rockchip/hardware.h>
 #include <dt-bindings/clock/rk3562-cru.h>
 
-#define PMUGRF_BASE			0xfdc20000
-#define GRF_BASE			0xfdc60000
+#define PMUGRF_BASE			0xFF010000
+#define GPIO0_IOC_BASE			0xFF080000
 #define GRF_GPIO1B_DS_2			0x218
 #define GRF_GPIO1B_DS_3			0x21c
 #define GRF_GPIO1C_DS_0			0x220
@@ -35,24 +35,17 @@
 #define CPU_GRF_BASE		0xfdc30000
 #define GRF_CORE_PVTPLL_CON0	(0x10)
 
-/* PMU_GRF_GPIO0D_IOMUX_L */
+/* GPIO0_IOC_GPIO0D_IOMUX_SEL_L */
 enum {
 	GPIO0D1_SHIFT		= 4,
 	GPIO0D1_MASK		= GENMASK(6, 4),
 	GPIO0D1_GPIO		= 0,
-	GPIO0D1_UART2_TXM0,
+	GPIO0D1_UART0_TXM0,
 
 	GPIO0D0_SHIFT		= 0,
 	GPIO0D0_MASK		= GENMASK(2, 0),
 	GPIO0D0_GPIO		= 0,
-	GPIO0D0_UART2_RXM0,
-};
-
-/* GRF_IOFUNC_SEL3 */
-enum {
-	UART2_IO_SEL_SHIFT	= 10,
-	UART2_IO_SEL_MASK	= GENMASK(11, 10),
-	UART2_IO_SEL_M0		= 0,
+	GPIO0D0_UART0_RXM0,
 };
 
 static struct mm_region rk3562_mem_map[] = {
@@ -83,32 +76,30 @@ static struct mm_region rk3562_mem_map[] = {
 };
 
 const char * const boot_devices[BROM_LAST_BOOTSOURCE + 1] = {
-	[BROM_BOOTSOURCE_EMMC] = "/mmc@fe310000",
-	[BROM_BOOTSOURCE_SPINOR] = "/spi@fe300000/flash@0",
-	[BROM_BOOTSOURCE_SD] = "/mmc@fe2b0000",
+	[BROM_BOOTSOURCE_EMMC] = "/mmc@ff870000",
+	[BROM_BOOTSOURCE_SPINOR] = "/spi@ff860000/flash@0",
+	[BROM_BOOTSOURCE_SD] = "/mmc@ff880000",
 };
 
 struct mm_region *mem_map = rk3562_mem_map;
 
 void board_debug_uart_init(void)
 {
-	static struct rk3562_pmugrf * const pmugrf = (void *)PMUGRF_BASE;
-	static struct rk3562_grf * const grf = (void *)GRF_BASE;
+	static struct rk3562_gpio0_ioc * const gpio0_ioc = (void *)GPIO0_IOC_BASE;
 
-	/* UART2 M0 */
-	rk_clrsetreg(&grf->iofunc_sel3, UART2_IO_SEL_MASK,
-		     UART2_IO_SEL_M0 << UART2_IO_SEL_SHIFT);
-
-	/* Switch iomux */
-	rk_clrsetreg(&pmugrf->pmu_gpio0d_iomux_l,
+	/* Switch iomux to UART0 M0 */
+	rk_clrsetreg(&gpio0_ioc->gpio0d_iomux_l,
 		     GPIO0D1_MASK | GPIO0D0_MASK,
-		     GPIO0D1_UART2_TXM0 << GPIO0D1_SHIFT |
-		     GPIO0D0_UART2_RXM0 << GPIO0D0_SHIFT);
+		     GPIO0D1_UART0_TXM0 << GPIO0D1_SHIFT |
+		     GPIO0D0_UART0_RXM0 << GPIO0D0_SHIFT);
 }
 
 int arch_cpu_init(void)
 {
+	#if 1
+	TODOOOOOOOOOOOOOOOOOOOOO!!!!!!!!
 #ifdef CONFIG_SPL_BUILD
+	
 	/*
 	 * When perform idle operation, corresponding clock can
 	 * be opened or gated automatically.
@@ -133,6 +124,7 @@ int arch_cpu_init(void)
 	writel(0x3f3f0707, GRF_BASE + GRF_GPIO1C_DS_1);
 	writel(0x3f3f0707, GRF_BASE + GRF_GPIO1C_DS_2);
 	writel(0x3f3f0707, GRF_BASE + GRF_GPIO1C_DS_3);
+#endif
 #endif
 	return 0;
 }
