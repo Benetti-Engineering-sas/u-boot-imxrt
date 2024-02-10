@@ -15,25 +15,16 @@
 
 #define PMUGRF_BASE			0xFF010000
 #define GPIO0_IOC_BASE			0xFF080000
-#define GRF_GPIO1B_DS_2			0x218
-#define GRF_GPIO1B_DS_3			0x21c
-#define GRF_GPIO1C_DS_0			0x220
-#define GRF_GPIO1C_DS_1			0x224
-#define GRF_GPIO1C_DS_2			0x228
-#define GRF_GPIO1C_DS_3			0x22c
-#define SGRF_BASE			0xFDD18000
-#define SGRF_SOC_CON4			0x10
-#define EMMC_HPROT_SECURE_CTRL		0x03
-#define SDMMC0_HPROT_SECURE_CTRL	0x01
+#define GPIO1_IOC_BASE			0xFF060000
 
-#define PMU_BASE_ADDR		0xfdd90000
-#define PMU_NOC_AUTO_CON0	(0x70)
-#define PMU_NOC_AUTO_CON1	(0x74)
-#define EDP_PHY_GRF_BASE	0xfdcb0000
-#define EDP_PHY_GRF_CON0	(EDP_PHY_GRF_BASE + 0x00)
-#define EDP_PHY_GRF_CON10	(EDP_PHY_GRF_BASE + 0x28)
-#define CPU_GRF_BASE		0xfdc30000
-#define GRF_CORE_PVTPLL_CON0	(0x10)
+#define FIREWALL_DDR_BASE	0xfef00000
+#define FW_DDR_MST4_REG		0x30	/* emmc */
+#define FW_DDR_MST6_REG		0x38	/* sdmmc mcu */
+
+#define PMU_BASE_ADDR		0xFF250000
+#define PMU2_BIU_AUTO_CON0	(0x0130)
+#define SYS_GRF_BASE		0xFF030000
+#define GRF_SYS_CPU_PVTPLL_CON0	(0x0620)
 
 /* GPIO0_IOC_GPIO0D_IOMUX_SEL_L */
 enum {
@@ -96,35 +87,34 @@ void board_debug_uart_init(void)
 
 int arch_cpu_init(void)
 {
-	#if 1
-	TODOOOOOOOOOOOOOOOOOOOOO!!!!!!!!
 #ifdef CONFIG_SPL_BUILD
-	
+	static struct rk3562_gpio1_ioc * const gpio1_ioc = (void *)GPIO1_IOC_BASE;
+	u32 val;
+
 	/*
 	 * When perform idle operation, corresponding clock can
 	 * be opened or gated automatically.
 	 */
-	writel(0xffffffff, PMU_BASE_ADDR + PMU_NOC_AUTO_CON0);
-	writel(0x000f000f, PMU_BASE_ADDR + PMU_NOC_AUTO_CON1);
+	writel(0x5fff5fff, PMU_BASE_ADDR + PMU2_BIU_AUTO_CON0);
 
-	/* Disable eDP phy by default */
-	writel(0x00070007, EDP_PHY_GRF_CON10);
-	writel(0x0ff10ff1, EDP_PHY_GRF_CON0);
+	/* Set core pvtpll ring length to 60 and enable it */
+	writel(0x00050003, SYS_GRF_BASE + GRF_SYS_CPU_PVTPLL_CON0);
 
-	/* Set core pvtpll ring length */
-	writel(0x00ff002b, CPU_GRF_BASE + GRF_CORE_PVTPLL_CON0);
+	/* Set the emmc to access ddr memory */
+	val = readl(FIREWALL_DDR_BASE + FW_DDR_MST4_REG);
+	writel(val & 0x0000ffff, FIREWALL_DDR_BASE + FW_DDR_MST4_REG);
 
-	/* Set the emmc sdmmc0 to secure */
-	rk_clrreg(SGRF_BASE + SGRF_SOC_CON4, (EMMC_HPROT_SECURE_CTRL << 11
-		| SDMMC0_HPROT_SECURE_CTRL << 4));
+	/* Set the sdmmc to access ddr memory */
+	val = readl(FIREWALL_DDR_BASE + FW_DDR_MST6_REG);
+	writel(val & 0xff0000ff, FIREWALL_DDR_BASE + FW_DDR_MST6_REG);
+
 	/* set the emmc driver strength to level 2 */
-	writel(0x3f3f0707, GRF_BASE + GRF_GPIO1B_DS_2);
-	writel(0x3f3f0707, GRF_BASE + GRF_GPIO1B_DS_3);
-	writel(0x3f3f0707, GRF_BASE + GRF_GPIO1C_DS_0);
-	writel(0x3f3f0707, GRF_BASE + GRF_GPIO1C_DS_1);
-	writel(0x3f3f0707, GRF_BASE + GRF_GPIO1C_DS_2);
-	writel(0x3f3f0707, GRF_BASE + GRF_GPIO1C_DS_3);
-#endif
+	gpio1_ioc->gpio1a_ds_0 = 0x3f3f0707;
+	gpio1_ioc->gpio1a_ds_1 = 0x3f3f0707;
+	gpio1_ioc->gpio1a_ds_2 = 0x3f3f0707;
+	gpio1_ioc->gpio1a_ds_3 = 0x3f3f0707;
+	gpio1_ioc->gpio1b_ds_0 = 0x3f3f0707;
+	gpio1_ioc->gpio1b_ds_0 = 0x3f3f0707;
 #endif
 	return 0;
 }

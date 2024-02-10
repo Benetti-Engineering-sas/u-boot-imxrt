@@ -105,4 +105,59 @@ struct rk3562_gpio0_ioc {
 
 check_member(rk3562_gpio0_ioc, xin_con, 0x014c);
 
+struct rk3562_gpio1_ioc {
+	unsigned int gpio1a_iomux_l;
+	unsigned int gpio1a_iomux_h;
+	unsigned int gpio1b_iomux_l;
+	unsigned int gpio1b_iomux_h;
+	unsigned int gpio1c_iomux_l;
+	unsigned int gpio1c_iomux_h;
+	unsigned int gpio1d_iomux_l;
+	unsigned int gpio1d_iomux_h;
+	unsigned int reserved0[(0x0080 - 0x001C) / 4 - 1];
+	unsigned int gpio1a_p;
+	unsigned int gpio1b_p;
+	unsigned int gpio1c_p;
+	unsigned int gpio1d_p;
+	unsigned int reserved1[(0x00C0 - 0x008C) / 4 - 1];
+	unsigned int gpio1a_ie;
+	unsigned int gpio1b_ie;
+	unsigned int gpio1c_ie;
+	unsigned int gpio1d_ie;
+	unsigned int reserved2[(0x0100 - 0x00CC) / 4 - 1];
+	unsigned int gpio1a_od;
+	unsigned int gpio1b_od;
+	unsigned int gpio1c_od;
+	unsigned int gpio1d_od;
+	unsigned int reserved3[(0x0140 - 0x010C) / 4 - 1];
+	unsigned int gpio1a_sus;
+	unsigned int gpio1b_sus;
+	unsigned int gpio1c_sus;
+	unsigned int gpio1d_sus;
+	unsigned int reserved4[(0x0180 - 0x014C) / 4 - 1];
+	unsigned int gpio1a_sl;
+	unsigned int gpio1b_sl;
+	unsigned int gpio1c_sl;
+	unsigned int gpio1d_sl;
+	unsigned int reserved5[(0x0200 - 0x018C) / 4 - 1];
+	unsigned int gpio1a_ds_0;
+	unsigned int gpio1a_ds_1;
+	unsigned int gpio1a_ds_2;
+	unsigned int gpio1a_ds_3;
+	unsigned int gpio1b_ds_0;
+	unsigned int gpio1b_ds_1;
+	unsigned int gpio1b_ds_2;
+	unsigned int gpio1b_ds_3;
+	unsigned int gpio1c_ds_0;
+	unsigned int gpio1c_ds_1;
+	unsigned int gpio1c_ds_2;
+	unsigned int gpio1c_ds_3;
+	unsigned int gpio1d_ds_0;
+	unsigned int gpio1d_ds_1;
+	unsigned int gpio1d_ds_2;
+	unsigned int gpio1d_ds_3;
+};
+
+check_member(rk3562_gpio1_ioc, gpio1d_ds_3, 0x023c);
+
 #endif
