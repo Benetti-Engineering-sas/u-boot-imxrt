@@ -27,17 +27,65 @@
 #define GRF_SYS_CPU_PVTPLL_CON0	(0x0620)
 
 /* GPIO0_IOC_GPIO0D_IOMUX_SEL_L */
-enum {
-	GPIO0D1_SHIFT		= 4,
-	GPIO0D1_MASK		= GENMASK(6, 4),
-	GPIO0D1_GPIO		= 0,
-	GPIO0D1_UART0_TXM0,
+#define GPIO0D1_SEL_SHIFT	4
+#define GPIO0D1_SEL_MASK	GENMASK(6, GPIO0D1_SEL_SHIFT)
+#define GPIO0D1_SEL_UART0_TXM0	1
 
-	GPIO0D0_SHIFT		= 0,
-	GPIO0D0_MASK		= GENMASK(2, 0),
-	GPIO0D0_GPIO		= 0,
-	GPIO0D0_UART0_RXM0,
-};
+#define GPIO0D0_SEL_SHIFT	0
+#define GPIO0D0_SEL_MASK	GENMASK(2, GPIO0D0_SEL_SHIFT)
+#define GPIO0D0_SEL_UART0_RXM0	1
+
+#define GPIO_DS_DISABLE		(0x00)
+#define GPIO_DS_LEVEL_0		(0x01)
+#define GPIO_DS_LEVEL_1		(0x03)
+#define GPIO_DS_LEVEL_2		(0x07)
+#define GPIO_DS_LEVEL_3		(0x0f)
+#define GPIO_DS_LEVEL_4		(0x1f)
+#define GPIO_DS_LEVEL_5		(0x3f)
+
+/* GPIOx_IOC_GPIOxx_DSx */
+#define GPIO_SEL_SHIFT_0	0
+#define GPIO_SEL_MASK_0		GENMASK(5, GPIO_SEL_SHIFT_0)
+
+#define GPIO_SEL_SHIFT_1	8
+#define GPIO_SEL_MASK_1		GENMASK(13, GPIO_SEL_SHIFT_1)
+
+#define GPIO1A0_SEL_SHIFT	GPIO_SEL_SHIFT_0
+#define GPIO1A0_SEL_MASK	GPIO_SEL_MASK_0
+#define GPIO1A1_SEL_SHIFT	GPIO_SEL_SHIFT_1
+#define GPIO1A1_SEL_MASK	GPIO_SEL_MASK_1
+#define GPIO1A2_SEL_SHIFT	GPIO_SEL_SHIFT_0
+#define GPIO1A2_SEL_MASK	GPIO_SEL_MASK_0
+#define GPIO1A3_SEL_SHIFT	GPIO_SEL_SHIFT_1
+#define GPIO1A3_SEL_MASK	GPIO_SEL_MASK_1
+#define GPIO1A4_SEL_SHIFT	GPIO_SEL_SHIFT_0
+#define GPIO1A4_SEL_MASK	GPIO_SEL_MASK_0
+#define GPIO1A5_SEL_SHIFT	GPIO_SEL_SHIFT_1
+#define GPIO1A5_SEL_MASK	GPIO_SEL_MASK_1
+#define GPIO1A6_SEL_SHIFT	GPIO_SEL_SHIFT_0
+#define GPIO1A6_SEL_MASK	GPIO_SEL_MASK_0
+#define GPIO1A7_SEL_SHIFT	GPIO_SEL_SHIFT_1
+#define GPIO1A7_SEL_MASK	GPIO_SEL_MASK_1
+
+#define GPIO1B0_SEL_SHIFT	GPIO_SEL_SHIFT_0
+#define GPIO1B0_SEL_MASK	GPIO_SEL_MASK_0
+#define GPIO1B1_SEL_SHIFT	GPIO_SEL_SHIFT_1
+#define GPIO1B1_SEL_MASK	GPIO_SEL_MASK_1
+#define GPIO1B2_SEL_SHIFT	GPIO_SEL_SHIFT_0
+#define GPIO1B2_SEL_MASK	GPIO_SEL_MASK_0
+#define GPIO1B3_SEL_SHIFT	GPIO_SEL_SHIFT_1
+#define GPIO1B3_SEL_MASK	GPIO_SEL_MASK_1
+#define GPIO1B4_SEL_SHIFT	GPIO_SEL_SHIFT_0
+#define GPIO1B4_SEL_MASK	GPIO_SEL_MASK_0
+#define GPIO1B5_SEL_SHIFT	GPIO_SEL_SHIFT_1
+#define GPIO1B5_SEL_MASK	GPIO_SEL_MASK_1
+#define GPIO1B6_SEL_SHIFT	GPIO_SEL_SHIFT_0
+#define GPIO1B6_SEL_MASK	GPIO_SEL_MASK_0
+#define GPIO1B7_SEL_SHIFT	GPIO_SEL_SHIFT_1
+#define GPIO1B7_SEL_MASK	GPIO_SEL_MASK_1
+
+#define GPIO1C0_SEL_SHIFT	GPIO_SEL_SHIFT_0
+#define GPIO1C0_SEL_MASK	GPIO_SEL_MASK_0
 
 static struct mm_region rk3562_mem_map[] = {
 	{
@@ -80,9 +128,9 @@ void board_debug_uart_init(void)
 
 	/* Switch iomux to UART0 M0 */
 	rk_clrsetreg(&gpio0_ioc->gpio0d_iomux_l,
-		     GPIO0D1_MASK | GPIO0D0_MASK,
-		     GPIO0D1_UART0_TXM0 << GPIO0D1_SHIFT |
-		     GPIO0D0_UART0_RXM0 << GPIO0D0_SHIFT);
+		     GPIO0D1_SEL_MASK | GPIO0D0_SEL_MASK,
+		     GPIO0D1_SEL_UART0_TXM0 << GPIO0D1_SEL_SHIFT |
+		     GPIO0D0_SEL_UART0_RXM0 << GPIO0D0_SEL_SHIFT);
 }
 
 int arch_cpu_init(void)
@@ -108,13 +156,42 @@ int arch_cpu_init(void)
 	val = readl(FIREWALL_DDR_BASE + FW_DDR_MST6_REG);
 	writel(val & 0xff0000ff, FIREWALL_DDR_BASE + FW_DDR_MST6_REG);
 
-	/* set the emmc driver strength to level 2 */
-	gpio1_ioc->gpio1a_ds_0 = 0x3f3f0707;
-	gpio1_ioc->gpio1a_ds_1 = 0x3f3f0707;
-	gpio1_ioc->gpio1a_ds_2 = 0x3f3f0707;
-	gpio1_ioc->gpio1a_ds_3 = 0x3f3f0707;
-	gpio1_ioc->gpio1b_ds_0 = 0x3f3f0707;
-	gpio1_ioc->gpio1b_ds_0 = 0x3f3f0707;
+	/* set the emmc and sdmmc0 driver strength to level 2 */
+	rk_clrsetreg(&gpio1_ioc->gpio1a_ds_0,
+		     GPIO1A0_SEL_MASK | GPIO1A1_SEL_MASK,
+		     (GPIO_DS_LEVEL_2) << GPIO1A0_SEL_SHIFT |
+		     (GPIO_DS_LEVEL_2) << GPIO1A1_SEL_SHIFT);
+	rk_clrsetreg(&gpio1_ioc->gpio1a_ds_1,
+		     GPIO1A2_SEL_MASK | GPIO1A3_SEL_MASK,
+		     (GPIO_DS_LEVEL_2) << GPIO1A2_SEL_SHIFT |
+		     (GPIO_DS_LEVEL_2) << GPIO1A3_SEL_SHIFT);
+	rk_clrsetreg(&gpio1_ioc->gpio1a_ds_2,
+		     GPIO1A4_SEL_MASK | GPIO1A5_SEL_MASK,
+		     (GPIO_DS_LEVEL_2) << GPIO1A4_SEL_SHIFT |
+		     (GPIO_DS_LEVEL_2) << GPIO1A5_SEL_SHIFT);
+	rk_clrsetreg(&gpio1_ioc->gpio1a_ds_3,
+		     GPIO1A6_SEL_MASK | GPIO1A7_SEL_MASK,
+		     (GPIO_DS_LEVEL_2) << GPIO1A6_SEL_SHIFT |
+		     (GPIO_DS_LEVEL_2) << GPIO1A7_SEL_SHIFT);
+	rk_clrsetreg(&gpio1_ioc->gpio1b_ds_0,
+		     GPIO1B0_SEL_MASK | GPIO1B1_SEL_MASK,
+		     (GPIO_DS_LEVEL_2) << GPIO1B0_SEL_SHIFT |
+		     (GPIO_DS_LEVEL_2) << GPIO1B1_SEL_SHIFT);
+	rk_clrsetreg(&gpio1_ioc->gpio1b_ds_1,
+		     GPIO1B2_SEL_MASK | GPIO1B3_SEL_MASK,
+		     (GPIO_DS_LEVEL_2) << GPIO1B2_SEL_SHIFT |
+		     (GPIO_DS_LEVEL_2) << GPIO1B3_SEL_SHIFT);
+	rk_clrsetreg(&gpio1_ioc->gpio1b_ds_2,
+		     GPIO1B4_SEL_MASK | GPIO1B5_SEL_MASK,
+		     (GPIO_DS_LEVEL_2) << GPIO1B4_SEL_SHIFT |
+		     (GPIO_DS_LEVEL_2) << GPIO1B5_SEL_SHIFT);
+	rk_clrsetreg(&gpio1_ioc->gpio1b_ds_3,
+		     GPIO1B6_SEL_MASK | GPIO1B7_SEL_MASK,
+		     (GPIO_DS_LEVEL_2) << GPIO1B6_SEL_SHIFT |
+		     (GPIO_DS_LEVEL_2) << GPIO1B7_SEL_SHIFT);
+	rk_clrsetreg(&gpio1_ioc->gpio1c_ds_0,
+		     GPIO1C0_SEL_MASK,
+		     (GPIO_DS_LEVEL_2) << GPIO1C0_SEL_SHIFT);
 #endif
 	return 0;
 }

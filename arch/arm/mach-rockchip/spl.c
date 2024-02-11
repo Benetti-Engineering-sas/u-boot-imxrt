@@ -82,9 +82,9 @@ u32 spl_mmc_boot_mode(struct mmc *mmc, const u32 boot_device)
 #define TIMER_LOAD_COUNT_L	0x00
 #define TIMER_LOAD_COUNT_H	0x04
 #define TIMER_CONTROL_REG	0x10
-#define TIMER_EN	0x1
-#define	TIMER_FMODE	BIT(0)
-#define	TIMER_RMODE	BIT(1)
+#define TIMER_EN		0x1
+#define	TIMER_FMODE		(0 << 1)
+#define	TIMER_RMODE		(1 << 1)
 
 __weak void rockchip_stimer_init(void)
 {
