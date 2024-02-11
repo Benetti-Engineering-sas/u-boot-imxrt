@@ -18,13 +18,13 @@
 	};
 
 	dmc: dmc {
-		compatible = "rockchip,rk3568-dmc";
+		compatible = "rockchip,rk3562-dmc";
 		bootph-all;
 		status = "okay";
 	};
 
 	otp: nvmem@fe38c000 {
-		compatible = "rockchip,rk3568-otp";
+		compatible = "rockchip,rk3562-otp";
 		reg = <0x0 0xfe38c000 0x0 0x4000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
