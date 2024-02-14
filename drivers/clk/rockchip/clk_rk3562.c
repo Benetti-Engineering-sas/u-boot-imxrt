@@ -94,21 +94,21 @@ static ulong
 rk3562_pmu_pll_set_rate(struct rk3562_clk_priv *priv,
 			ulong pll_id, ulong rate)
 {
-	struct udevice *pmucru_dev;
+	struct udevice *pmu1cru_dev;
 	struct rk3562_pmu1clk_priv *pmu_priv;
 	int ret;
 
 	ret = uclass_get_device_by_driver(UCLASS_CLK,
 					  DM_DRIVER_GET(rockchip_rk3562_pmu1cru),
-					  &pmucru_dev);
+					  &pmu1cru_dev);
 	if (ret) {
-		printf("%s: could not find pmucru device\n", __func__);
+		printf("%s: could not find pmu1cru device\n", __func__);
 		return ret;
 	}
-	pmu_priv = dev_get_priv(pmucru_dev);
+	pmu_priv = dev_get_priv(pmu1cru_dev);
 
 	rockchip_pll_set_rate(&rk3562_pll_clks[pll_id],
-			      pmu_priv->pmucru, pll_id, rate);
+			      pmu_priv->pmu1cru, pll_id, rate);
 
 	return 0;
 }
@@ -117,21 +117,21 @@ rk3562_pmu_pll_set_rate(struct rk3562_clk_priv *priv,
 static ulong rk3562_pmu_pll_get_rate(struct rk3562_clk_priv *priv,
 				     ulong pll_id)
 {
-	struct udevice *pmucru_dev;
+	struct udevice *pmu1cru_dev;
 	struct rk3562_pmu1clk_priv *pmu_priv;
 	int ret;
 
 	ret = uclass_get_device_by_driver(UCLASS_CLK,
 					  DM_DRIVER_GET(rockchip_rk3562_pmu1cru),
-					  &pmucru_dev);
+					  &pmu1cru_dev);
 	if (ret) {
-		printf("%s: could not find pmucru device\n", __func__);
+		printf("%s: could not find pmu1cru device\n", __func__);
 		return ret;
 	}
-	pmu_priv = dev_get_priv(pmucru_dev);
+	pmu_priv = dev_get_priv(pmu1cru_dev);
 
 	return rockchip_pll_get_rate(&rk3562_pll_clks[pll_id],
-				      pmu_priv->pmucru, pll_id);
+				      pmu_priv->pmu1cru, pll_id);
 }
 
 /*
@@ -188,126 +188,42 @@ static void rational_best_approximation(unsigned long given_numerator,
 static ulong rk3562_i2c_get_pmuclk(struct rk3562_pmu1clk_priv *priv,
 				   ulong clk_id)
 {
-	struct rk3562_topcru *topcru = priv->topcru;
-	u32 div, con;
-
-	switch (clk_id) {
-	case CLK_I2C0:
-		con = readl(&topcru->pmu_clksel_con[3]);
-		div = (con & CLK_I2C0_DIV_MASK) >> CLK_I2C0_DIV_SHIFT;
-		break;
-	default:
-		return -ENOENT;
-	}
-
-	return DIV_TO_RATE(priv->ppll_hz, div);
+	/* BE_TODO: */
+	return 0;
 }
 
 static ulong rk3562_i2c_set_pmuclk(struct rk3562_pmu1clk_priv *priv,
 				   ulong clk_id, ulong rate)
 {
-	struct rk3562_pmu1cru *pmucru = priv->pmucru;
-	int src_clk_div;
-
-	src_clk_div = DIV_ROUND_UP(priv->ppll_hz, rate);
-	assert(src_clk_div - 1 <= 127);
-
-	switch (clk_id) {
-	case CLK_I2C0:
-		rk_clrsetreg(&pmucru->pmu_clksel_con[3], CLK_I2C0_DIV_MASK,
-			     (src_clk_div - 1) << CLK_I2C0_DIV_SHIFT);
-		break;
-	default:
-		return -ENOENT;
-	}
-
-	return rk3562_i2c_get_pmuclk(priv, clk_id);
+	/* BE_TODO: */
+	return 0;
 }
 
 static ulong rk3562_pwm_get_pmuclk(struct rk3562_pmu1clk_priv *priv,
 				   ulong clk_id)
 {
-	struct rk3562_pmu1cru *pmucru = priv->pmucru;
-	u32 div, sel, con, parent;
-
-	switch (clk_id) {
-	case CLK_PWM0:
-		con = readl(&pmucru->pmu_clksel_con[6]);
-		sel = (con & CLK_PWM0_SEL_MASK) >> CLK_PWM0_SEL_SHIFT;
-		div = (con & CLK_PWM0_DIV_MASK) >> CLK_PWM0_DIV_SHIFT;
-		if (sel == CLK_PWM0_SEL_XIN24M)
-			parent = OSC_HZ;
-		else
-			parent = priv->ppll_hz;
-		break;
-	default:
-		return -ENOENT;
-	}
-
-	return DIV_TO_RATE(parent, div);
+	/* BE_TODO: */
+	return 0;
 }
 
 static ulong rk3562_pwm_set_pmuclk(struct rk3562_pmu1clk_priv *priv,
 				   ulong clk_id, ulong rate)
 {
-	struct rk3562_pmu1cru *pmucru = priv->pmucru;
-	int src_clk_div;
-
-	switch (clk_id) {
-	case CLK_PWM0:
-		if (rate == OSC_HZ) {
-			rk_clrsetreg(&pmucru->pmu_clksel_con[6],
-				     CLK_PWM0_SEL_MASK | CLK_PWM0_DIV_MASK,
-				     (CLK_PWM0_SEL_XIN24M <<
-				      CLK_PWM0_SEL_SHIFT) |
-				     0 << CLK_PWM0_SEL_SHIFT);
-		} else {
-			src_clk_div = DIV_ROUND_UP(priv->ppll_hz, rate);
-			assert(src_clk_div - 1 <= 127);
-			rk_clrsetreg(&pmucru->pmu_clksel_con[6],
-				     CLK_PWM0_DIV_MASK | CLK_PWM0_DIV_MASK,
-				     (CLK_PWM0_SEL_PPLL << CLK_PWM0_SEL_SHIFT) |
-				     (src_clk_div - 1) << CLK_PWM0_DIV_SHIFT);
-		}
-		break;
-	default:
-		return -ENOENT;
-	}
-
-	return rk3562_pwm_get_pmuclk(priv, clk_id);
+	/* BE_TODO: */
+	return 0;
 }
 
 static ulong rk3562_pmu_get_pmuclk(struct rk3562_pmu1clk_priv *priv)
 {
-	struct rk3562_pmu1cru *pmucru = priv->pmucru;
-	u32 div, con, sel, parent;
-
-	con = readl(&pmucru->pmu_clksel_con[2]);
-	sel = (con & PCLK_PDPMU_SEL_MASK) >> PCLK_PDPMU_SEL_SHIFT;
-	div = (con & PCLK_PDPMU_DIV_MASK) >> PCLK_PDPMU_DIV_SHIFT;
-	if (sel)
-		parent = GPLL_HZ;
-	else
-		parent = priv->ppll_hz;
-
-	return DIV_TO_RATE(parent, div);
+	/* BE_TODO: */
+	return 0;
 }
 
 static ulong rk3562_pmu_set_pmuclk(struct rk3562_pmu1clk_priv *priv,
 				   ulong rate)
 {
-	struct rk3562_pmu1cru *pmucru = priv->pmucru;
-	int src_clk_div;
-
-	src_clk_div = DIV_ROUND_UP(priv->ppll_hz, rate);
-	assert(src_clk_div - 1 <= 31);
-
-	rk_clrsetreg(&pmucru->pmu_clksel_con[2],
-		     PCLK_PDPMU_DIV_MASK | PCLK_PDPMU_SEL_MASK,
-		     (PCLK_PDPMU_SEL_PPLL << PCLK_PDPMU_SEL_SHIFT) |
-		     ((src_clk_div - 1) << PCLK_PDPMU_DIV_SHIFT));
-
-	return rk3562_pmu_get_pmuclk(priv);
+	/* BE_TODO: */
+	return 0;
 }
 
 static ulong rk3562_pmu1cru_get_rate(struct clk *clk)
@@ -315,8 +231,8 @@ static ulong rk3562_pmu1cru_get_rate(struct clk *clk)
 	struct rk3562_pmu1clk_priv *priv = dev_get_priv(clk->dev);
 	ulong rate = 0;
 
-	if (!priv->ppll_hz) {
-		printf("%s ppll=%lu\n", __func__, priv->ppll_hz);
+	if (!priv->cpll_hz) {
+		printf("%s cpll_hz=%lu\n", __func__, priv->cpll_hz);
 		return -ENOENT;
 	}
 
@@ -324,11 +240,7 @@ static ulong rk3562_pmu1cru_get_rate(struct clk *clk)
 	switch (clk->id) {
 	case PLL_CPLL:
 		rate = rockchip_pll_get_rate(&rk3562_pll_clks[CPLL],
-					     priv->pmucru, CPLL);
-		break;
-	case CLK_RTC_32K:
-	case CLK_RTC32K_FRAC:
-		rate = rk3562_rtc32k_get_pmuclk(priv);
+					     priv->pmu1cru, CPLL);
 		break;
 	case CLK_I2C0:
 		rate = rk3562_i2c_get_pmuclk(priv, clk->id);
@@ -351,8 +263,8 @@ static ulong rk3562_pmu1cru_set_rate(struct clk *clk, ulong rate)
 	struct rk3562_pmu1clk_priv *priv = dev_get_priv(clk->dev);
 	ulong ret = 0;
 
-	if (!priv->ppll_hz) {
-		printf("%s ppll=%lu\n", __func__, priv->ppll_hz);
+	if (!priv->cpll_hz) {
+		printf("%s ppll=%lu\n", __func__, priv->cpll_hz);
 		return -ENOENT;
 	}
 
@@ -360,13 +272,9 @@ static ulong rk3562_pmu1cru_set_rate(struct clk *clk, ulong rate)
 	switch (clk->id) {
 	case PLL_CPLL:
 		ret = rockchip_pll_set_rate(&rk3562_pll_clks[CPLL],
-					    priv->pmucru, CPLL, rate);
-		priv->hpll_hz = rockchip_pll_get_rate(&rk3562_pll_clks[CPLL],
-						      priv->pmucru, CPLL);
-		break;
-	case CLK_RTC_32K:
-	case CLK_RTC32K_FRAC:
-		ret = rk3562_rtc32k_set_pmuclk(priv, rate);
+					    priv->pmu1cru, CPLL, rate);
+		priv->cpll_hz = rockchip_pll_get_rate(&rk3562_pll_clks[CPLL],
+						      priv->pmu1cru, CPLL);
 		break;
 	case CLK_I2C0:
 		ret = rk3562_i2c_set_pmuclk(priv, clk->id, rate);
@@ -377,10 +285,6 @@ static ulong rk3562_pmu1cru_set_rate(struct clk *clk, ulong rate)
 	case PCLK_PMU:
 		ret = rk3562_pmu_set_pmuclk(priv, rate);
 		break;
-	case CLK_PCIEPHY0_REF:
-	case CLK_PCIEPHY1_REF:
-	case CLK_PCIEPHY2_REF:
-		return 0;
 	default:
 		return -ENOENT;
 	}
@@ -388,29 +292,9 @@ static ulong rk3562_pmu1cru_set_rate(struct clk *clk, ulong rate)
 	return ret;
 }
 
-static int rk3562_rtc32k_set_parent(struct clk *clk, struct clk *parent)
-{
-	struct rk3562_pmu1clk_priv *priv = dev_get_priv(clk->dev);
-	struct rk3562_pmu1cru *pmucru = priv->pmucru;
-
-	if (parent->id == CLK_RTC32K_FRAC)
-		rk_clrsetreg(&pmucru->pmu_clksel_con[0], RTC32K_SEL_MASK,
-			     RTC32K_SEL_OSC0_DIV32K << RTC32K_SEL_SHIFT);
-	else
-		rk_clrsetreg(&pmucru->pmu_clksel_con[0], RTC32K_SEL_MASK,
-			     RTC32K_SEL_OSC1_32K << RTC32K_SEL_SHIFT);
-
-	return 0;
-}
-
 static int rk3562_pmu1cru_set_parent(struct clk *clk, struct clk *parent)
 {
-	switch (clk->id) {
-	case CLK_RTC_32K:
-		return rk3562_rtc32k_set_parent(clk, parent);
-	default:
-		return -ENOENT;
-	}
+	return -ENOENT;
 }
 
 static struct clk_ops rk3562_pmu1cru_ops = {
@@ -424,16 +308,14 @@ static int rk3562_pmu1cru_probe(struct udevice *dev)
 	struct rk3562_pmu1clk_priv *priv = dev_get_priv(dev);
 	int ret = 0;
 
-	if (priv->ppll_hz != CPLL_HZ) {
+	if (priv->cpll_hz != CPLL_HZ) {
 		ret = rockchip_pll_set_rate(&rk3562_pll_clks[CPLL],
-					    priv->pmucru,
+					    priv->pmu1cru,
 					    CPLL, CPLL_HZ);
 		if (!ret)
-			priv->ppll_hz = CPLL_HZ;
+			priv->cpll_hz = CPLL_HZ;
 	}
 
-	/* Ungate PCIe30phy refclk_m and refclk_n */
-	rk_clrsetreg(&priv->pmucru->pmu_clkgate_con[2], 0x3 << 13, 0 << 13);
 	return 0;
 }
 
@@ -441,7 +323,7 @@ static int rk3562_pmu1cru_ofdata_to_platdata(struct udevice *dev)
 {
 	struct rk3562_pmu1clk_priv *priv = dev_get_priv(dev);
 
-	priv->pmucru = dev_read_addr_ptr(dev);
+	priv->pmu1cru = dev_read_addr_ptr(dev);
 
 	return 0;
 }
@@ -454,7 +336,7 @@ static int rk3562_pmu1cru_bind(struct udevice *dev)
 	ret = offsetof(struct rk3562_pmu1cru, pmu_softrst_con[0]);
 	ret = rockchip_reset_bind(dev, ret, 1);
 	if (ret)
-		debug("Warning: pmucru software reset driver bind failed\n");
+		debug("Warning: pmu1cru software reset driver bind failed\n");
 #endif
 
 	return 0;
@@ -469,8 +351,8 @@ U_BOOT_DRIVER(rockchip_rk3562_pmu1cru) = {
 	.name		= "rockchip_rk3562_pmu1cru",
 	.id		= UCLASS_CLK,
 	.of_match	= rk3562_pmu1cru_ids,
-	.priv_auto = sizeof(struct rk3562_pmu1clk_priv),
-	.of_to_plat = rk3562_pmu1cru_ofdata_to_platdata,
+	.priv_auto	= sizeof(struct rk3562_pmu1clk_priv),
+	.of_to_plat	= rk3562_pmu1cru_ofdata_to_platdata,
 	.ops		= &rk3562_pmu1cru_ops,
 	.bind		= rk3562_pmu1cru_bind,
 	.probe		= rk3562_pmu1cru_probe,
@@ -1964,8 +1846,6 @@ static ulong rk3562_rkvdec_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 		      >> CLK_RKVDEC_CORE_DIV_SHIFT;
 		if (src == CLK_RKVDEC_CORE_SEL_CPLL)
 			p_rate = priv->cpll_hz;
-		else if (src == CLK_RKVDEC_CORE_SEL_NPLL)
-			p_rate = priv->npll_hz;
 		else if (src == CLK_RKVDEC_CORE_SEL_VPLL)
 			p_rate = priv->vpll_hz;
 		else
@@ -2004,8 +1884,6 @@ static ulong rk3562_rkvdec_set_clk(struct rk3562_clk_priv *priv,
 		      >> CLK_RKVDEC_CORE_SEL_SHIFT;
 		if (src == CLK_RKVDEC_CORE_SEL_CPLL)
 			p_rate = priv->cpll_hz;
-		else if (src == CLK_RKVDEC_CORE_SEL_NPLL)
-			p_rate = priv->npll_hz;
 		else if (src == CLK_RKVDEC_CORE_SEL_VPLL)
 			p_rate = priv->vpll_hz;
 		else

@@ -50,5 +50,5 @@ void *rockchip_get_pmucru(void)
 
 	priv = dev_get_priv(dev);
 
-	return priv->pmucru;
+	return priv->pmu1cru;
 }
