@@ -384,9 +384,9 @@
 		reg = <0x0 0xfdc50000 0x0 0x1000>;
 	};
 
-	grf: syscon@fdc60000 {
+	grf: syscon@ff030000 {
 		compatible = "rockchip,rk3562-grf", "syscon", "simple-mfd";
-		reg = <0x0 0xfdc60000 0x0 0x10000>;
+		reg = <0x0 0xff030000 0x0 0x10000>;
 	};
 
 	pipe_phy_grf1: syscon@fdc80000 {
@@ -410,21 +410,21 @@
 	};
 
 	pmucru: clock-controller@fdd00000 {
-		compatible = "rockchip,rk3562-pmucru";
+		compatible = "rockchip,rk3562-pmu1cru";
 		reg = <0x0 0xfdd00000 0x0 0x1000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 	};
 
-	cru: clock-controller@fdd20000 {
+	cru: clock-controller@ff100000 {
 		compatible = "rockchip,rk3562-cru";
-		reg = <0x0 0xfdd20000 0x0 0x1000>;
+		reg = <0x0 0xff100000 0x0 0x1000>;
 		clocks = <&xin24m>;
 		clock-names = "xin24m";
 		#clock-cells = <1>;
 		#reset-cells = <1>;
-		assigned-clocks = <&pmucru CLK_RTC_32K>, <&cru PLL_GPLL>, <&pmucru PLL_PPLL>;
-		assigned-clock-rates = <32768>, <1200000000>, <200000000>;
+		assigned-clocks = <&pmucru CLK_RTC_32K>, <&cru PLL_GPLL>;
+		assigned-clock-rates = <32768>, <1200000000>;
 		assigned-clock-parents = <&pmucru CLK_RTC32K_FRAC>;
 		rockchip,grf = <&grf>;
 	};

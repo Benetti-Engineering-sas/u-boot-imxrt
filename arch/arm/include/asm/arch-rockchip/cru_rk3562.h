@@ -11,45 +11,38 @@
 #define KHz		1000
 #define OSC_HZ		(24 * MHz)
 
-#define APLL_HZ		(816 * MHz)
+#define APLL_HZ		(1200 * MHz)
 #define GPLL_HZ		(1188 * MHz)
 #define CPLL_HZ		(1000 * MHz)
-#define PPLL_HZ		(200 * MHz)
 
 /* RK3562 pll id */
 enum rk3562_pll_id {
 	APLL,
-	DPLL,
-	CPLL,
 	GPLL,
-	NPLL,
 	VPLL,
-	PPLL,
 	HPLL,
+	CPLL,
+	DPLL,
 	PLL_COUNT,
 };
 
 struct rk3562_clk_info {
 	unsigned long id;
 	char *name;
-	bool is_cru;
 };
 
 /* Private data for the clock driver - used by rockchip_get_cru() */
-struct rk3562_pmuclk_priv {
-	struct rk3562_pmucru *pmucru;
-	ulong ppll_hz;
-	ulong hpll_hz;
+struct rk3562_pmu1clk_priv {
+	struct rk3562_pmu1cru *pmucru;
+	ulong cpll_hz;
 };
 
 struct rk3562_clk_priv {
-	struct rk3562_cru *cru;
+	struct rk3562_topcru *cru;
 	struct rk3562_grf *grf;
-	ulong ppll_hz;
 	ulong hpll_hz;
 	ulong gpll_hz;
 	ulong cpll_hz;
-	ulong npll_hz;
 	ulong vpll_hz;
 	ulong armclk_hz;
 	ulong armclk_enter_hz;
@@ -67,49 +60,80 @@ struct rk3562_pll {
 	unsigned int reserved0[3];
 };
 
-struct rk3562_pmucru {
-	struct rk3562_pll pll[2];/* Address Offset: 0x0000 */
-	unsigned int reserved0[16];/* Address Offset: 0x0040 */
-	unsigned int mode_con00;/* Address Offset: 0x0080 */
-	unsigned int reserved1[31];/* Address Offset: 0x0084 */
-	unsigned int pmu_clksel_con[10];/* Address Offset: 0x0100 */
-	unsigned int reserved2[22];/* Address Offset: 0x0128 */
-	unsigned int pmu_clkgate_con[3];/* Address Offset: 0x0180 */
-	unsigned int reserved3[29];/* Address Offset: 0x018C */
-	unsigned int pmu_softrst_con[1];/* Address Offset: 0x0200 */
+struct rk3562_pmu0cru {
+	unsigned int reserved0[64]; /* Address Offset: 0x0000 */
+	unsigned int pmu0clksel_con[4]; /* Address Offset: 0x0100 */
+	unsigned int reserved1[28]; /* Address Offset: 0x00110 */
+	unsigned int pmu0gate_con[3]; /* Address Offset: 0x0180 */
+	unsigned int reserved2[29]; /* Address Offset: 0x0018C */
+	unsigned int pmu0softrst_con[3]; /* Address Offset: 0x0200 */
+	unsigned int reserved3[33]; /* Address Offset: 0x0020C */
+	unsigned int misc_con0; /* Address Offset: 0x0290 */
+	unsigned int grf_freq; /* Address Offset: 0x0294 */
+	unsigned int io32k_exist; /* Address Offset: 0x0298 */
 };
 
-check_member(rk3562_pmucru, mode_con00, 0x80);
-check_member(rk3562_pmucru, pmu_softrst_con[0], 0x200);
+check_member(rk3562_pmu0cru, io32k_exist, 0x0298);
 
-struct rk3562_cru {
+struct rk3562_pmu1cru {
+	unsigned int reserved0[16]; /* Address Offset: 0x0000 */
+	struct rk3562_pll pll; /* Address Offset: 0x0040 */
+	unsigned int reserved1[40]; /* Address Offset: 0x0060 */
+	unsigned int pmu_clksel_con00; /* Address Offset: 0x0100 */
+	unsigned int reserved2; /* Address Offset: 0x0104 */
+	unsigned int pmu_clksel_con02; /* Address Offset: 0x0108 */
+	unsigned int pmu_clksel_con03; /* Address Offset: 0x010C */
+	unsigned int pmu_clksel_con04; /* Address Offset: 0x0110 */
+	unsigned int reserved3; /* Address Offset: 0x0114 */
+	unsigned int pmu_clksel_con06; /* Address Offset: 0x0118 */
+	unsigned int reserved4[25]; /* Address Offset: 0x011C */
+	unsigned int pmu_clkgate_con[4]; /* Address Offset: 0x0180 */
+	unsigned int reserved5[28]; /* Address Offset: 0x0190 */
+	unsigned int pmu_softrst_con[3]; /* Address Offset: 0x0200 */
+	unsigned int reserved6[29]; /* Address Offset: 0x020C */
+	unsigned int ssgtbl[32]; /* Address Offset: 0x0280 */
+	unsigned int reserved7[32]; /* Address Offset: 0x0300 */
+	unsigned int mode_con00; /* Address Offset: 0x0380 */
+	unsigned int reserved8[39]; /* Address Offset: 0x0384 */
+	unsigned int cm0_gatemask_con; /* Address Offset: 0x0420 */
+	unsigned int reserved9[152]; /* Address Offset: 0x0424 */
+	unsigned int misc_con00; /* Address Offset: 0x0684 */
+};
+
+check_member(rk3562_pmu1cru, misc_con00, 0x0684);
+
+struct rk3562_topcru {
 	struct rk3562_pll pll[6];
-	unsigned int mode_con00;/* Address Offset: 0x00C0 */
-	unsigned int misc_con[3];/* Address Offset: 0x00C4 */
-	unsigned int glb_cnt_th;/* Address Offset: 0x00D0 */
-	unsigned int glb_srst_fst;/* Address Offset: 0x00D4 */
-	unsigned int glb_srsr_snd; /* Address Offset: 0x00D8 */
-	unsigned int glb_rst_con;/* Address Offset: 0x00DC */
-	unsigned int glb_rst_st;/* Address Offset: 0x00E0 */
-	unsigned int reserved0[7];/* Address Offset: 0x00E4 */
-	unsigned int clksel_con[85]; /* Address Offset: 0x0100 */
-	unsigned int reserved1[43];/* Address Offset: 0x0254 */
-	unsigned int clkgate_con[36];/* Address Offset: 0x0300 */
-	unsigned int reserved2[28]; /* Address Offset: 0x0390 */
-	unsigned int softrst_con[30];/* Address Offset: 0x0400 */
-	unsigned int reserved3[2];/* Address Offset: 0x0478 */
-	unsigned int ssgtbl[32];/* Address Offset: 0x0480 */
-	unsigned int reserved4[32];/* Address Offset: 0x0500 */
-	unsigned int sdmmc0_con[2];/* Address Offset: 0x0580 */
-	unsigned int sdmmc1_con[2];/* Address Offset: 0x058C */
-	unsigned int sdmmc2_con[2];/* Address Offset: 0x0590 */
-	unsigned int emmc_con[2];/* Address Offset: 0x0598 */
+	unsigned int reserved0[16]; /* Address Offset: 0x00C0 */
+	unsigned int clksel_con[48]; /* Address Offset: 0x0100 */
+	unsigned int reserved1[80]; /* Address Offset: 0x01C0 */
+	unsigned int clkgate_con[28]; /* Address Offset: 0x0300 */
+	unsigned int reserved2[36]; /* Address Offset: 0x0370 */
+	unsigned int softrst_con[28]; /* Address Offset: 0x0400 */
+	unsigned int reserved3[36]; /* Address Offset: 0x0470 */
+	unsigned int ssgtbl[32]; /* Address Offset: 0x0500 */
+	unsigned int reserved4[32]; /* Address Offset: 0x0580 */
+	unsigned int mode_con00; /* Address Offset: 0x0600 */
+	unsigned int reserved5[3]; /* Address Offset: 0x060C */
+	unsigned int glb_cnt_th; /* Address Offset: 0x0610 */
+	unsigned int glb_srst_fst; /* Address Offset: 0x0614 */
+	unsigned int glb_srsr_snd; /* Address Offset: 0x0618 */
+	unsigned int glb_rst_con; /* Address Offset: 0x061C */
+	unsigned int glb_rst_st; /* Address Offset: 0x0620 */
+	unsigned int sdmmc0_con[2]; /* Address Offset: 0x0624 */
+	unsigned int sdmmc1_con[2]; /* Address Offset: 0x062C */
+	unsigned int reserved6[2]; /* Address Offset: 0x0634 */
+	unsigned int emmc_con; /* Address Offset: 0x063C */
+	unsigned int reserved7[16]; /* Address Offset: 0x0640 */
+	unsigned int cm0_gatemask; /* Address Offset: 0x0680 */
+	unsigned int misc_con[3];/* Address Offset: 0x0684 */
+	unsigned int reserved8; /* Address Offset: 0x0690 */
+	unsigned int freq_cal; /* Address Offset: 0x0694 */
 };
 
-#define rockchip_cru rk3562_cru
+#define rockchip_cru rk3562_topcru
 
-check_member(rk3562_cru, mode_con00, 0xc0);
-check_member(rk3562_cru, softrst_con[0], 0x400);
+check_member(rk3562_topcru, freq_cal, 0x0694);
 
 struct pll_rate_table {
 	unsigned long rate;
@@ -121,10 +145,12 @@ struct pll_rate_table {
 	unsigned int frac;
 };
 
-#define RK3562_PMU_MODE			0x80
-#define RK3562_PMU_PLL_CON(x)		((x) * 0x4)
-#define RK3562_PLL_CON(x)		((x) * 0x4)
-#define RK3562_MODE_CON			0xc0
+#define RK3562_TOPCRU_MODE_CON		0x600
+#define RK3562_TOPCRU_PLL_CON(x)	((x) * 0x4)
+#define RK3562_PMU1CRU_MODE_CON		0x380
+#define RK3562_PMU1CRU_PLL_CON(x)	((x) * 0x4)
+#define RK3562_SUBDDRCRU_MODE_CON	0x380
+#define RK3562_SUBDDRCRU_PLL_CON(x)	((x) * 0x4)
 
 enum {
 	/* CRU_PMU_CLK_SEL0_CON */

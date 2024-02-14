@@ -14,7 +14,7 @@
 int rockchip_get_clk(struct udevice **devp)
 {
 	return uclass_get_device_by_driver(UCLASS_CLK,
-			DM_DRIVER_GET(rockchip_rk3562_cru), devp);
+			DM_DRIVER_GET(rockchip_rk3562_topcru), devp);
 }
 
 void *rockchip_get_cru(void)
@@ -35,12 +35,12 @@ void *rockchip_get_cru(void)
 static int rockchip_get_pmucruclk(struct udevice **devp)
 {
 	return uclass_get_device_by_driver(UCLASS_CLK,
-			DM_DRIVER_GET(rockchip_rk3562_pmucru), devp);
+			DM_DRIVER_GET(rockchip_rk3562_pmu1cru), devp);
 }
 
 void *rockchip_get_pmucru(void)
 {
-	struct rk3562_pmuclk_priv *priv;
+	struct rk3562_pmu1clk_priv *priv;
 	struct udevice *dev;
 	int ret;
 

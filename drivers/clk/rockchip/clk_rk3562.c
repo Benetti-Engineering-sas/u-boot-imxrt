@@ -22,11 +22,11 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #if CONFIG_IS_ENABLED(OF_PLATDATA)
 struct rk3562_clk_plat {
-	struct dtd_rockchip_rk3562_cru dtd;
+	struct dtd_rockchip_rk3562_topcru dtd;
 };
 
-struct rk3562_pmuclk_plat {
-	struct dtd_rockchip_rk3562_pmucru dtd;
+struct rk3562_pmu1cru_plat {
+	struct dtd_rockchip_rk3562_pmu1cru dtd;
 };
 #endif
 
@@ -75,22 +75,18 @@ static struct rockchip_pll_rate_table rk3562_pll_rates[] = {
 };
 
 static struct rockchip_pll_clock rk3562_pll_clks[] = {
-	[APLL] = PLL(pll_rk3328, PLL_APLL, RK3562_PLL_CON(0),
-		     RK3562_MODE_CON, 0, 10, 0, rk3562_pll_rates),
-	[DPLL] = PLL(pll_rk3328, PLL_DPLL, RK3562_PLL_CON(8),
-		     RK3562_MODE_CON, 2, 10, 0, NULL),
-	[CPLL] = PLL(pll_rk3328, PLL_CPLL, RK3562_PLL_CON(24),
-		     RK3562_MODE_CON, 4, 10, 0, rk3562_pll_rates),
-	[GPLL] = PLL(pll_rk3328, PLL_HPLL, RK3562_PLL_CON(16),
-		     RK3562_MODE_CON, 6, 10, 0, rk3562_pll_rates),
-	[NPLL] = PLL(pll_rk3328, PLL_NPLL, RK3562_PLL_CON(32),
-		     RK3562_MODE_CON, 10, 10, 0, rk3562_pll_rates),
-	[VPLL] = PLL(pll_rk3328, PLL_VPLL, RK3562_PLL_CON(40),
-		     RK3562_MODE_CON, 12, 10, 0, rk3562_pll_rates),
-	[PPLL] = PLL(pll_rk3328, PLL_PPLL, RK3562_PMU_PLL_CON(0),
-		     RK3562_PMU_MODE, 0, 10, 0, rk3562_pll_rates),
-	[HPLL] = PLL(pll_rk3328, PLL_HPLL, RK3562_PMU_PLL_CON(16),
-		     RK3562_PMU_MODE, 2, 10, 0, rk3562_pll_rates),
+	[APLL] = PLL(pll_rk3328, PLL_APLL, RK3562_TOPCRU_PLL_CON(0),
+		     RK3562_TOPCRU_MODE_CON, 0, 10, 0, rk3562_pll_rates),
+	[GPLL] = PLL(pll_rk3328, PLL_HPLL, RK3562_TOPCRU_PLL_CON(16),
+		     RK3562_TOPCRU_MODE_CON, 6, 10, 0, rk3562_pll_rates),
+	[VPLL] = PLL(pll_rk3328, PLL_VPLL, RK3562_TOPCRU_PLL_CON(40),
+		     RK3562_TOPCRU_MODE_CON, 12, 10, 0, rk3562_pll_rates),
+	[HPLL] = PLL(pll_rk3328, PLL_HPLL, RK3562_TOPCRU_PLL_CON(16),
+		     RK3562_TOPCRU_MODE_CON, 2, 10, 0, rk3562_pll_rates),
+	[CPLL] = PLL(pll_rk3328, PLL_CPLL, RK3562_PMU1CRU_PLL_CON(24),
+		     RK3562_PMU1CRU_MODE_CON, 4, 10, 0, rk3562_pll_rates),
+	[DPLL] = PLL(pll_rk3328, PLL_DPLL, RK3562_SUBDDRCRU_PLL_CON(8),
+		     RK3562_SUBDDRCRU_MODE_CON, 2, 10, 0, NULL),
 };
 
 #ifndef CONFIG_SPL_BUILD
@@ -99,11 +95,11 @@ rk3562_pmu_pll_set_rate(struct rk3562_clk_priv *priv,
 			ulong pll_id, ulong rate)
 {
 	struct udevice *pmucru_dev;
-	struct rk3562_pmuclk_priv *pmu_priv;
+	struct rk3562_pmu1clk_priv *pmu_priv;
 	int ret;
 
 	ret = uclass_get_device_by_driver(UCLASS_CLK,
-					  DM_DRIVER_GET(rockchip_rk3562_pmucru),
+					  DM_DRIVER_GET(rockchip_rk3562_pmu1cru),
 					  &pmucru_dev);
 	if (ret) {
 		printf("%s: could not find pmucru device\n", __func__);
@@ -122,11 +118,11 @@ static ulong rk3562_pmu_pll_get_rate(struct rk3562_clk_priv *priv,
 				     ulong pll_id)
 {
 	struct udevice *pmucru_dev;
-	struct rk3562_pmuclk_priv *pmu_priv;
+	struct rk3562_pmu1clk_priv *pmu_priv;
 	int ret;
 
 	ret = uclass_get_device_by_driver(UCLASS_CLK,
-					  DM_DRIVER_GET(rockchip_rk3562_pmucru),
+					  DM_DRIVER_GET(rockchip_rk3562_pmu1cru),
 					  &pmucru_dev);
 	if (ret) {
 		printf("%s: could not find pmucru device\n", __func__);
@@ -189,49 +185,15 @@ static void rational_best_approximation(unsigned long given_numerator,
 	*best_denominator = d1;
 }
 
-static ulong rk3562_rtc32k_get_pmuclk(struct rk3562_pmuclk_priv *priv)
-{
-	struct rk3562_pmucru *pmucru = priv->pmucru;
-	unsigned long m, n;
-	u32 fracdiv;
-
-	fracdiv = readl(&pmucru->pmu_clksel_con[1]);
-	m = fracdiv & RTC32K_FRAC_NUMERATOR_MASK;
-	m >>= RTC32K_FRAC_NUMERATOR_SHIFT;
-	n = fracdiv & RTC32K_FRAC_DENOMINATOR_MASK;
-	n >>= RTC32K_FRAC_DENOMINATOR_SHIFT;
-
-	return OSC_HZ * m / n;
-}
-
-static ulong rk3562_rtc32k_set_pmuclk(struct rk3562_pmuclk_priv *priv,
-				      ulong rate)
-{
-	struct rk3562_pmucru *pmucru = priv->pmucru;
-	unsigned long m, n, val;
-
-	rk_clrsetreg(&pmucru->pmu_clksel_con[0], RTC32K_SEL_MASK,
-		     RTC32K_SEL_OSC0_DIV32K << RTC32K_SEL_SHIFT);
-
-	rational_best_approximation(rate, OSC_HZ,
-				    GENMASK(16 - 1, 0),
-				    GENMASK(16 - 1, 0),
-				    &m, &n);
-	val = m << RTC32K_FRAC_NUMERATOR_SHIFT | n;
-	writel(val, &pmucru->pmu_clksel_con[1]);
-
-	return rk3562_rtc32k_get_pmuclk(priv);
-}
-
-static ulong rk3562_i2c_get_pmuclk(struct rk3562_pmuclk_priv *priv,
+static ulong rk3562_i2c_get_pmuclk(struct rk3562_pmu1clk_priv *priv,
 				   ulong clk_id)
 {
-	struct rk3562_pmucru *pmucru = priv->pmucru;
+	struct rk3562_topcru *topcru = priv->topcru;
 	u32 div, con;
 
 	switch (clk_id) {
 	case CLK_I2C0:
-		con = readl(&pmucru->pmu_clksel_con[3]);
+		con = readl(&topcru->pmu_clksel_con[3]);
 		div = (con & CLK_I2C0_DIV_MASK) >> CLK_I2C0_DIV_SHIFT;
 		break;
 	default:
@@ -241,10 +203,10 @@ static ulong rk3562_i2c_get_pmuclk(struct rk3562_pmuclk_priv *priv,
 	return DIV_TO_RATE(priv->ppll_hz, div);
 }
 
-static ulong rk3562_i2c_set_pmuclk(struct rk3562_pmuclk_priv *priv,
+static ulong rk3562_i2c_set_pmuclk(struct rk3562_pmu1clk_priv *priv,
 				   ulong clk_id, ulong rate)
 {
-	struct rk3562_pmucru *pmucru = priv->pmucru;
+	struct rk3562_pmu1cru *pmucru = priv->pmucru;
 	int src_clk_div;
 
 	src_clk_div = DIV_ROUND_UP(priv->ppll_hz, rate);
@@ -262,10 +224,10 @@ static ulong rk3562_i2c_set_pmuclk(struct rk3562_pmuclk_priv *priv,
 	return rk3562_i2c_get_pmuclk(priv, clk_id);
 }
 
-static ulong rk3562_pwm_get_pmuclk(struct rk3562_pmuclk_priv *priv,
+static ulong rk3562_pwm_get_pmuclk(struct rk3562_pmu1clk_priv *priv,
 				   ulong clk_id)
 {
-	struct rk3562_pmucru *pmucru = priv->pmucru;
+	struct rk3562_pmu1cru *pmucru = priv->pmucru;
 	u32 div, sel, con, parent;
 
 	switch (clk_id) {
@@ -285,10 +247,10 @@ static ulong rk3562_pwm_get_pmuclk(struct rk3562_pmuclk_priv *priv,
 	return DIV_TO_RATE(parent, div);
 }
 
-static ulong rk3562_pwm_set_pmuclk(struct rk3562_pmuclk_priv *priv,
+static ulong rk3562_pwm_set_pmuclk(struct rk3562_pmu1clk_priv *priv,
 				   ulong clk_id, ulong rate)
 {
-	struct rk3562_pmucru *pmucru = priv->pmucru;
+	struct rk3562_pmu1cru *pmucru = priv->pmucru;
 	int src_clk_div;
 
 	switch (clk_id) {
@@ -315,9 +277,9 @@ static ulong rk3562_pwm_set_pmuclk(struct rk3562_pmuclk_priv *priv,
 	return rk3562_pwm_get_pmuclk(priv, clk_id);
 }
 
-static ulong rk3562_pmu_get_pmuclk(struct rk3562_pmuclk_priv *priv)
+static ulong rk3562_pmu_get_pmuclk(struct rk3562_pmu1clk_priv *priv)
 {
-	struct rk3562_pmucru *pmucru = priv->pmucru;
+	struct rk3562_pmu1cru *pmucru = priv->pmucru;
 	u32 div, con, sel, parent;
 
 	con = readl(&pmucru->pmu_clksel_con[2]);
@@ -331,10 +293,10 @@ static ulong rk3562_pmu_get_pmuclk(struct rk3562_pmuclk_priv *priv)
 	return DIV_TO_RATE(parent, div);
 }
 
-static ulong rk3562_pmu_set_pmuclk(struct rk3562_pmuclk_priv *priv,
+static ulong rk3562_pmu_set_pmuclk(struct rk3562_pmu1clk_priv *priv,
 				   ulong rate)
 {
-	struct rk3562_pmucru *pmucru = priv->pmucru;
+	struct rk3562_pmu1cru *pmucru = priv->pmucru;
 	int src_clk_div;
 
 	src_clk_div = DIV_ROUND_UP(priv->ppll_hz, rate);
@@ -348,9 +310,9 @@ static ulong rk3562_pmu_set_pmuclk(struct rk3562_pmuclk_priv *priv,
 	return rk3562_pmu_get_pmuclk(priv);
 }
 
-static ulong rk3562_pmuclk_get_rate(struct clk *clk)
+static ulong rk3562_pmu1cru_get_rate(struct clk *clk)
 {
-	struct rk3562_pmuclk_priv *priv = dev_get_priv(clk->dev);
+	struct rk3562_pmu1clk_priv *priv = dev_get_priv(clk->dev);
 	ulong rate = 0;
 
 	if (!priv->ppll_hz) {
@@ -360,13 +322,9 @@ static ulong rk3562_pmuclk_get_rate(struct clk *clk)
 
 	debug("%s %ld\n", __func__, clk->id);
 	switch (clk->id) {
-	case PLL_PPLL:
-		rate = rockchip_pll_get_rate(&rk3562_pll_clks[PPLL],
-					     priv->pmucru, PPLL);
-		break;
-	case PLL_HPLL:
-		rate = rockchip_pll_get_rate(&rk3562_pll_clks[HPLL],
-					     priv->pmucru, HPLL);
+	case PLL_CPLL:
+		rate = rockchip_pll_get_rate(&rk3562_pll_clks[CPLL],
+					     priv->pmucru, CPLL);
 		break;
 	case CLK_RTC_32K:
 	case CLK_RTC32K_FRAC:
@@ -388,9 +346,9 @@ static ulong rk3562_pmuclk_get_rate(struct clk *clk)
 	return rate;
 }
 
-static ulong rk3562_pmuclk_set_rate(struct clk *clk, ulong rate)
+static ulong rk3562_pmu1cru_set_rate(struct clk *clk, ulong rate)
 {
-	struct rk3562_pmuclk_priv *priv = dev_get_priv(clk->dev);
+	struct rk3562_pmu1clk_priv *priv = dev_get_priv(clk->dev);
 	ulong ret = 0;
 
 	if (!priv->ppll_hz) {
@@ -400,17 +358,11 @@ static ulong rk3562_pmuclk_set_rate(struct clk *clk, ulong rate)
 
 	debug("%s %ld %ld\n", __func__, clk->id, rate);
 	switch (clk->id) {
-	case PLL_PPLL:
-		ret = rockchip_pll_set_rate(&rk3562_pll_clks[PPLL],
-					    priv->pmucru, PPLL, rate);
-		priv->ppll_hz = rockchip_pll_get_rate(&rk3562_pll_clks[PPLL],
-						      priv->pmucru, PPLL);
-		break;
-	case PLL_HPLL:
-		ret = rockchip_pll_set_rate(&rk3562_pll_clks[HPLL],
-					    priv->pmucru, HPLL, rate);
-		priv->hpll_hz = rockchip_pll_get_rate(&rk3562_pll_clks[HPLL],
-						      priv->pmucru, HPLL);
+	case PLL_CPLL:
+		ret = rockchip_pll_set_rate(&rk3562_pll_clks[CPLL],
+					    priv->pmucru, CPLL, rate);
+		priv->hpll_hz = rockchip_pll_get_rate(&rk3562_pll_clks[CPLL],
+						      priv->pmucru, CPLL);
 		break;
 	case CLK_RTC_32K:
 	case CLK_RTC32K_FRAC:
@@ -438,8 +390,8 @@ static ulong rk3562_pmuclk_set_rate(struct clk *clk, ulong rate)
 
 static int rk3562_rtc32k_set_parent(struct clk *clk, struct clk *parent)
 {
-	struct rk3562_pmuclk_priv *priv = dev_get_priv(clk->dev);
-	struct rk3562_pmucru *pmucru = priv->pmucru;
+	struct rk3562_pmu1clk_priv *priv = dev_get_priv(clk->dev);
+	struct rk3562_pmu1cru *pmucru = priv->pmucru;
 
 	if (parent->id == CLK_RTC32K_FRAC)
 		rk_clrsetreg(&pmucru->pmu_clksel_con[0], RTC32K_SEL_MASK,
@@ -451,7 +403,7 @@ static int rk3562_rtc32k_set_parent(struct clk *clk, struct clk *parent)
 	return 0;
 }
 
-static int rk3562_pmuclk_set_parent(struct clk *clk, struct clk *parent)
+static int rk3562_pmu1cru_set_parent(struct clk *clk, struct clk *parent)
 {
 	switch (clk->id) {
 	case CLK_RTC_32K:
@@ -461,23 +413,23 @@ static int rk3562_pmuclk_set_parent(struct clk *clk, struct clk *parent)
 	}
 }
 
-static struct clk_ops rk3562_pmuclk_ops = {
-	.get_rate = rk3562_pmuclk_get_rate,
-	.set_rate = rk3562_pmuclk_set_rate,
-	.set_parent = rk3562_pmuclk_set_parent,
+static struct clk_ops rk3562_pmu1cru_ops = {
+	.get_rate = rk3562_pmu1cru_get_rate,
+	.set_rate = rk3562_pmu1cru_set_rate,
+	.set_parent = rk3562_pmu1cru_set_parent,
 };
 
-static int rk3562_pmuclk_probe(struct udevice *dev)
+static int rk3562_pmu1cru_probe(struct udevice *dev)
 {
-	struct rk3562_pmuclk_priv *priv = dev_get_priv(dev);
+	struct rk3562_pmu1clk_priv *priv = dev_get_priv(dev);
 	int ret = 0;
 
-	if (priv->ppll_hz != PPLL_HZ) {
-		ret = rockchip_pll_set_rate(&rk3562_pll_clks[PPLL],
+	if (priv->ppll_hz != CPLL_HZ) {
+		ret = rockchip_pll_set_rate(&rk3562_pll_clks[CPLL],
 					    priv->pmucru,
-					    PPLL, PPLL_HZ);
+					    CPLL, CPLL_HZ);
 		if (!ret)
-			priv->ppll_hz = PPLL_HZ;
+			priv->ppll_hz = CPLL_HZ;
 	}
 
 	/* Ungate PCIe30phy refclk_m and refclk_n */
@@ -485,21 +437,21 @@ static int rk3562_pmuclk_probe(struct udevice *dev)
 	return 0;
 }
 
-static int rk3562_pmuclk_ofdata_to_platdata(struct udevice *dev)
+static int rk3562_pmu1cru_ofdata_to_platdata(struct udevice *dev)
 {
-	struct rk3562_pmuclk_priv *priv = dev_get_priv(dev);
+	struct rk3562_pmu1clk_priv *priv = dev_get_priv(dev);
 
 	priv->pmucru = dev_read_addr_ptr(dev);
 
 	return 0;
 }
 
-static int rk3562_pmuclk_bind(struct udevice *dev)
+static int rk3562_pmu1cru_bind(struct udevice *dev)
 {
 #if CONFIG_IS_ENABLED(RESET_ROCKCHIP)
 	int ret = 0;
 
-	ret = offsetof(struct rk3562_pmucru, pmu_softrst_con[0]);
+	ret = offsetof(struct rk3562_pmu1cru, pmu_softrst_con[0]);
 	ret = rockchip_reset_bind(dev, ret, 1);
 	if (ret)
 		debug("Warning: pmucru software reset driver bind failed\n");
@@ -508,29 +460,28 @@ static int rk3562_pmuclk_bind(struct udevice *dev)
 	return 0;
 }
 
-static const struct udevice_id rk3562_pmuclk_ids[] = {
-	{ .compatible = "rockchip,rk3562-pmucru" },
+static const struct udevice_id rk3562_pmu1cru_ids[] = {
+	{ .compatible = "rockchip,rk3562-pmu1cru" },
 	{ }
 };
 
-U_BOOT_DRIVER(rockchip_rk3562_pmucru) = {
-	.name		= "rockchip_rk3562_pmucru",
+U_BOOT_DRIVER(rockchip_rk3562_pmu1cru) = {
+	.name		= "rockchip_rk3562_pmu1cru",
 	.id		= UCLASS_CLK,
-	.of_match	= rk3562_pmuclk_ids,
-	.priv_auto = sizeof(struct rk3562_pmuclk_priv),
-	.of_to_plat = rk3562_pmuclk_ofdata_to_platdata,
-	.ops		= &rk3562_pmuclk_ops,
-	.bind		= rk3562_pmuclk_bind,
-	.probe		= rk3562_pmuclk_probe,
+	.of_match	= rk3562_pmu1cru_ids,
+	.priv_auto = sizeof(struct rk3562_pmu1clk_priv),
+	.of_to_plat = rk3562_pmu1cru_ofdata_to_platdata,
+	.ops		= &rk3562_pmu1cru_ops,
+	.bind		= rk3562_pmu1cru_bind,
+	.probe		= rk3562_pmu1cru_probe,
 #if CONFIG_IS_ENABLED(OF_PLATDATA)
-	.plat_auto	= sizeof(struct rk3562_pmuclk_plat),
+	.plat_auto	= sizeof(struct rk3562_pmu1cru_plat),
 #endif
-
 };
 
 static int rk3562_armclk_set_clk(struct rk3562_clk_priv *priv, ulong hz)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	const struct rockchip_cpu_rate_table *rate;
 	ulong old_rate;
 
@@ -595,125 +546,9 @@ static int rk3562_armclk_set_clk(struct rk3562_clk_priv *priv, ulong hz)
 	return 0;
 }
 
-static ulong rk3562_cpll_div_get_rate(struct rk3562_clk_priv *priv,
-				      ulong clk_id)
-{
-	struct rk3562_cru *cru = priv->cru;
-	int div, mask, shift, con;
-
-	switch (clk_id) {
-	case CPLL_500M:
-		con = 78;
-		mask = CPLL_500M_DIV_MASK;
-		shift = CPLL_500M_DIV_SHIFT;
-		break;
-	case CPLL_333M:
-		con = 79;
-		mask = CPLL_333M_DIV_MASK;
-		shift = CPLL_333M_DIV_SHIFT;
-		break;
-	case CPLL_250M:
-		con = 79;
-		mask = CPLL_250M_DIV_MASK;
-		shift = CPLL_250M_DIV_SHIFT;
-		break;
-	case CPLL_125M:
-		con = 80;
-		mask = CPLL_125M_DIV_MASK;
-		shift = CPLL_125M_DIV_SHIFT;
-		break;
-	case CPLL_100M:
-		con = 82;
-		mask = CPLL_100M_DIV_MASK;
-		shift = CPLL_100M_DIV_SHIFT;
-		break;
-	case CPLL_62P5M:
-		con = 80;
-		mask = CPLL_62P5M_DIV_MASK;
-		shift = CPLL_62P5M_DIV_SHIFT;
-		break;
-	case CPLL_50M:
-		con = 81;
-		mask = CPLL_50M_DIV_MASK;
-		shift = CPLL_50M_DIV_SHIFT;
-		break;
-	case CPLL_25M:
-		con = 81;
-		mask = CPLL_25M_DIV_MASK;
-		shift = CPLL_25M_DIV_SHIFT;
-		break;
-	default:
-		return -ENOENT;
-	}
-
-	div = (readl(&cru->clksel_con[con]) & mask) >> shift;
-	return DIV_TO_RATE(priv->cpll_hz, div);
-}
-
-static ulong rk3562_cpll_div_set_rate(struct rk3562_clk_priv *priv,
-				      ulong clk_id, ulong rate)
-{
-	struct rk3562_cru *cru = priv->cru;
-	int div, mask, shift, con;
-
-	switch (clk_id) {
-	case CPLL_500M:
-		con = 78;
-		mask = CPLL_500M_DIV_MASK;
-		shift = CPLL_500M_DIV_SHIFT;
-		break;
-	case CPLL_333M:
-		con = 79;
-		mask = CPLL_333M_DIV_MASK;
-		shift = CPLL_333M_DIV_SHIFT;
-		break;
-	case CPLL_250M:
-		con = 79;
-		mask = CPLL_250M_DIV_MASK;
-		shift = CPLL_250M_DIV_SHIFT;
-		break;
-	case CPLL_125M:
-		con = 80;
-		mask = CPLL_125M_DIV_MASK;
-		shift = CPLL_125M_DIV_SHIFT;
-		break;
-	case CPLL_100M:
-		con = 82;
-		mask = CPLL_100M_DIV_MASK;
-		shift = CPLL_100M_DIV_SHIFT;
-		break;
-	case CPLL_62P5M:
-		con = 80;
-		mask = CPLL_62P5M_DIV_MASK;
-		shift = CPLL_62P5M_DIV_SHIFT;
-		break;
-	case CPLL_50M:
-		con = 81;
-		mask = CPLL_50M_DIV_MASK;
-		shift = CPLL_50M_DIV_SHIFT;
-		break;
-	case CPLL_25M:
-		con = 81;
-		mask = CPLL_25M_DIV_MASK;
-		shift = CPLL_25M_DIV_SHIFT;
-		break;
-	default:
-		return -ENOENT;
-	}
-
-	div = DIV_ROUND_UP(priv->cpll_hz, rate);
-	if (clk_id == CPLL_25M)
-		assert(div - 1 <= 63);
-	else
-		assert(div - 1 <= 31);
-	rk_clrsetreg(&cru->clksel_con[con],
-		     mask, (div - 1) << shift);
-	return rk3562_cpll_div_get_rate(priv, clk_id);
-}
-
 static ulong rk3562_bus_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 con, sel, rate;
 
 	switch (clk_id) {
@@ -752,7 +587,7 @@ static ulong rk3562_bus_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 static ulong rk3562_bus_set_clk(struct rk3562_clk_priv *priv,
 				ulong clk_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk;
 
 	switch (clk_id) {
@@ -794,7 +629,7 @@ static ulong rk3562_bus_set_clk(struct rk3562_clk_priv *priv,
 
 static ulong rk3562_perimid_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 con, sel, rate;
 
 	switch (clk_id) {
@@ -832,7 +667,7 @@ static ulong rk3562_perimid_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 static ulong rk3562_perimid_set_clk(struct rk3562_clk_priv *priv,
 				    ulong clk_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk;
 
 	switch (clk_id) {
@@ -873,7 +708,7 @@ static ulong rk3562_perimid_set_clk(struct rk3562_clk_priv *priv,
 
 static ulong rk3562_top_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 con, sel, rate;
 
 	switch (clk_id) {
@@ -935,7 +770,7 @@ static ulong rk3562_top_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 static ulong rk3562_top_set_clk(struct rk3562_clk_priv *priv,
 				ulong clk_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk;
 
 	switch (clk_id) {
@@ -1002,7 +837,7 @@ static ulong rk3562_top_set_clk(struct rk3562_clk_priv *priv,
 
 static ulong rk3562_i2c_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 sel, con;
 	ulong rate;
 
@@ -1033,7 +868,7 @@ static ulong rk3562_i2c_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 static ulong rk3562_i2c_set_clk(struct rk3562_clk_priv *priv, ulong clk_id,
 				ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk;
 
 	if (rate == 200 * MHz)
@@ -1061,7 +896,7 @@ static ulong rk3562_i2c_set_clk(struct rk3562_clk_priv *priv, ulong clk_id,
 
 static ulong rk3562_spi_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 sel, con;
 
 	con = readl(&cru->clksel_con[72]);
@@ -1098,7 +933,7 @@ static ulong rk3562_spi_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 static ulong rk3562_spi_set_clk(struct rk3562_clk_priv *priv,
 				ulong clk_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk;
 
 	if (rate == 200 * MHz)
@@ -1138,7 +973,7 @@ static ulong rk3562_spi_set_clk(struct rk3562_clk_priv *priv,
 
 static ulong rk3562_pwm_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 sel, con;
 
 	con = readl(&cru->clksel_con[72]);
@@ -1172,7 +1007,7 @@ static ulong rk3562_pwm_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 static ulong rk3562_pwm_set_clk(struct rk3562_clk_priv *priv,
 				ulong clk_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk;
 
 	if (rate == 100 * MHz)
@@ -1205,7 +1040,7 @@ static ulong rk3562_pwm_set_clk(struct rk3562_clk_priv *priv,
 
 static ulong rk3562_adc_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 div, sel, con, prate;
 
 	switch (clk_id) {
@@ -1235,7 +1070,7 @@ static ulong rk3562_adc_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 static ulong rk3562_adc_set_clk(struct rk3562_clk_priv *priv,
 				ulong clk_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk_div;
 	ulong prate = 0;
 
@@ -1281,7 +1116,7 @@ static ulong rk3562_adc_set_clk(struct rk3562_clk_priv *priv,
 
 static ulong rk3562_crypto_get_rate(struct rk3562_clk_priv *priv, ulong clk_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 sel, con;
 
 	switch (clk_id) {
@@ -1340,7 +1175,7 @@ static ulong rk3562_crypto_get_rate(struct rk3562_clk_priv *priv, ulong clk_id)
 static ulong rk3562_crypto_set_rate(struct rk3562_clk_priv *priv,
 				    ulong clk_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 src_clk, mask, shift;
 
 	switch (clk_id) {
@@ -1402,7 +1237,7 @@ static ulong rk3562_crypto_set_rate(struct rk3562_clk_priv *priv,
 
 static ulong rk3562_sdmmc_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 sel, con;
 
 	switch (clk_id) {
@@ -1444,7 +1279,7 @@ static ulong rk3562_sdmmc_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 static ulong rk3562_sdmmc_set_clk(struct rk3562_clk_priv *priv,
 				  ulong clk_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk;
 
 	switch (rate) {
@@ -1500,7 +1335,7 @@ static ulong rk3562_sdmmc_set_clk(struct rk3562_clk_priv *priv,
 
 static ulong rk3562_sfc_get_clk(struct rk3562_clk_priv *priv)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 sel, con;
 
 	con = readl(&cru->clksel_con[28]);
@@ -1525,7 +1360,7 @@ static ulong rk3562_sfc_get_clk(struct rk3562_clk_priv *priv)
 
 static ulong rk3562_sfc_set_clk(struct rk3562_clk_priv *priv, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk;
 
 	switch (rate) {
@@ -1560,7 +1395,7 @@ static ulong rk3562_sfc_set_clk(struct rk3562_clk_priv *priv, ulong rate)
 
 static ulong rk3562_nand_get_clk(struct rk3562_clk_priv *priv)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 sel, con;
 
 	con = readl(&cru->clksel_con[28]);
@@ -1581,7 +1416,7 @@ static ulong rk3562_nand_get_clk(struct rk3562_clk_priv *priv)
 
 static ulong rk3562_nand_set_clk(struct rk3562_clk_priv *priv, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk;
 
 	switch (rate) {
@@ -1610,7 +1445,7 @@ static ulong rk3562_nand_set_clk(struct rk3562_clk_priv *priv, ulong rate)
 
 static ulong rk3562_emmc_get_clk(struct rk3562_clk_priv *priv)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 sel, con;
 
 	con = readl(&cru->clksel_con[28]);
@@ -1635,7 +1470,7 @@ static ulong rk3562_emmc_get_clk(struct rk3562_clk_priv *priv)
 
 static ulong rk3562_emmc_set_clk(struct rk3562_clk_priv *priv, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk;
 
 	switch (rate) {
@@ -1674,7 +1509,7 @@ static ulong rk3562_emmc_set_clk(struct rk3562_clk_priv *priv, ulong rate)
 
 static ulong rk3562_emmc_get_bclk(struct rk3562_clk_priv *priv)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 sel, con;
 
 	con = readl(&cru->clksel_con[28]);
@@ -1693,7 +1528,7 @@ static ulong rk3562_emmc_get_bclk(struct rk3562_clk_priv *priv)
 
 static ulong rk3562_emmc_set_bclk(struct rk3562_clk_priv *priv, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk;
 
 	switch (rate) {
@@ -1720,7 +1555,7 @@ static ulong rk3562_emmc_set_bclk(struct rk3562_clk_priv *priv, ulong rate)
 #ifndef CONFIG_SPL_BUILD
 static ulong rk3562_aclk_vop_get_clk(struct rk3562_clk_priv *priv)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 div, sel, con, parent;
 
 	con = readl(&cru->clksel_con[38]);
@@ -1740,7 +1575,7 @@ static ulong rk3562_aclk_vop_get_clk(struct rk3562_clk_priv *priv)
 
 static ulong rk3562_aclk_vop_set_clk(struct rk3562_clk_priv *priv, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk_div, src_clk_mux;
 
 	if ((priv->cpll_hz % rate) == 0) {
@@ -1761,7 +1596,7 @@ static ulong rk3562_aclk_vop_set_clk(struct rk3562_clk_priv *priv, ulong rate)
 
 static ulong rk3562_dclk_vop_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 conid, div, sel, con, parent;
 
 	switch (clk_id) {
@@ -1801,7 +1636,7 @@ static ulong rk3562_dclk_vop_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 static ulong rk3562_dclk_vop_set_clk(struct rk3562_clk_priv *priv,
 				     ulong clk_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	ulong pll_rate, now, best_rate = 0;
 	u32 i, conid, con, sel, div, best_div = 0, best_sel = 0;
 
@@ -1880,7 +1715,7 @@ static ulong rk3562_dclk_vop_set_clk(struct rk3562_clk_priv *priv,
 static ulong rk3562_gmac_src_get_clk(struct rk3562_clk_priv *priv,
 				     ulong mac_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 sel, con;
 
 	con = readl(&cru->clksel_con[31 + mac_id * 2]);
@@ -1903,7 +1738,7 @@ static ulong rk3562_gmac_src_get_clk(struct rk3562_clk_priv *priv,
 static ulong rk3562_gmac_src_set_clk(struct rk3562_clk_priv *priv,
 				     ulong mac_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk;
 
 	switch (rate) {
@@ -1930,7 +1765,7 @@ static ulong rk3562_gmac_src_set_clk(struct rk3562_clk_priv *priv,
 static ulong rk3562_gmac_out_get_clk(struct rk3562_clk_priv *priv,
 				     ulong mac_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 sel, con;
 
 	con = readl(&cru->clksel_con[31 + mac_id * 2]);
@@ -1953,7 +1788,7 @@ static ulong rk3562_gmac_out_get_clk(struct rk3562_clk_priv *priv,
 static ulong rk3562_gmac_out_set_clk(struct rk3562_clk_priv *priv,
 				     ulong mac_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk;
 
 	switch (rate) {
@@ -1983,7 +1818,7 @@ static ulong rk3562_gmac_out_set_clk(struct rk3562_clk_priv *priv,
 static ulong rk3562_gmac_ptp_ref_get_clk(struct rk3562_clk_priv *priv,
 					 ulong mac_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 sel, con;
 
 	con = readl(&cru->clksel_con[31 + mac_id * 2]);
@@ -2006,7 +1841,7 @@ static ulong rk3562_gmac_ptp_ref_get_clk(struct rk3562_clk_priv *priv,
 static ulong rk3562_gmac_ptp_ref_set_clk(struct rk3562_clk_priv *priv,
 					 ulong mac_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk;
 
 	switch (rate) {
@@ -2036,7 +1871,7 @@ static ulong rk3562_gmac_ptp_ref_set_clk(struct rk3562_clk_priv *priv,
 static ulong rk3562_gmac_tx_rx_set_clk(struct rk3562_clk_priv *priv,
 				       ulong mac_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 con, sel, div_sel;
 
 	con = readl(&cru->clksel_con[31 + mac_id * 2]);
@@ -2067,7 +1902,7 @@ static ulong rk3562_gmac_tx_rx_set_clk(struct rk3562_clk_priv *priv,
 
 static ulong rk3562_ebc_get_clk(struct rk3562_clk_priv *priv)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 con, div, p_rate;
 
 	con = readl(&cru->clksel_con[79]);
@@ -2090,7 +1925,7 @@ static ulong rk3562_ebc_get_clk(struct rk3562_clk_priv *priv)
 
 static ulong rk3562_ebc_set_clk(struct rk3562_clk_priv *priv, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk_div;
 
 	src_clk_div = DIV_ROUND_UP(priv->cpll_hz, rate);
@@ -2107,7 +1942,7 @@ static ulong rk3562_ebc_set_clk(struct rk3562_clk_priv *priv, ulong rate)
 
 static ulong rk3562_rkvdec_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 con, div, src, p_rate;
 
 	switch (clk_id) {
@@ -2144,7 +1979,7 @@ static ulong rk3562_rkvdec_get_clk(struct rk3562_clk_priv *priv, ulong clk_id)
 static ulong rk3562_rkvdec_set_clk(struct rk3562_clk_priv *priv,
 				   ulong clk_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	int src_clk_div, src, p_rate;
 
 	switch (clk_id) {
@@ -2193,7 +2028,7 @@ static ulong rk3562_rkvdec_set_clk(struct rk3562_clk_priv *priv,
 
 static ulong rk3562_uart_get_rate(struct rk3562_clk_priv *priv, ulong clk_id)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 reg, con, fracdiv, div, src, p_src, p_rate;
 	unsigned long m, n;
 
@@ -2255,7 +2090,7 @@ static ulong rk3562_uart_get_rate(struct rk3562_clk_priv *priv, ulong clk_id)
 static ulong rk3562_uart_set_rate(struct rk3562_clk_priv *priv,
 				  ulong clk_id, ulong rate)
 {
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 reg, clk_src, uart_src, div;
 	unsigned long m = 0, n = 0, val;
 
@@ -2342,25 +2177,17 @@ static ulong rk3562_clk_get_rate(struct clk *clk)
 		rate = rockchip_pll_get_rate(&rk3562_pll_clks[APLL], priv->cru,
 					     APLL);
 		break;
-	case PLL_CPLL:
-		rate = rockchip_pll_get_rate(&rk3562_pll_clks[CPLL], priv->cru,
-					     CPLL);
-		break;
 	case PLL_GPLL:
 		rate = rockchip_pll_get_rate(&rk3562_pll_clks[GPLL], priv->cru,
 					     GPLL);
-		break;
-	case PLL_NPLL:
-		rate = rockchip_pll_get_rate(&rk3562_pll_clks[NPLL], priv->cru,
-					     NPLL);
 		break;
 	case PLL_VPLL:
 		rate = rockchip_pll_get_rate(&rk3562_pll_clks[VPLL], priv->cru,
 					     VPLL);
 		break;
-	case PLL_DPLL:
-		rate = rockchip_pll_get_rate(&rk3562_pll_clks[DPLL], priv->cru,
-					     DPLL);
+	case PLL_HPLL:
+		rate = rockchip_pll_get_rate(&rk3562_pll_clks[HPLL], priv->cru,
+					     HPLL);
 		break;
 	case ACLK_BUS:
 	case PCLK_BUS:
@@ -2484,16 +2311,6 @@ static ulong rk3562_clk_get_rate(struct clk *clk)
 	case CLK_CRYPTO_NS_PKA:
 		rate = rk3562_crypto_get_rate(priv, clk->id);
 		break;
-	case CPLL_500M:
-	case CPLL_333M:
-	case CPLL_250M:
-	case CPLL_125M:
-	case CPLL_100M:
-	case CPLL_62P5M:
-	case CPLL_50M:
-	case CPLL_25M:
-		rate = rk3562_cpll_div_get_rate(priv, clk->id);
-		break;
 	default:
 		return -ENOENT;
 	}
@@ -2518,21 +2335,11 @@ static ulong rk3562_clk_set_rate(struct clk *clk, ulong rate)
 			rk3562_armclk_set_clk(priv, rate);
 		priv->armclk_hz = rate;
 		break;
-	case PLL_CPLL:
-		ret = rockchip_pll_set_rate(&rk3562_pll_clks[CPLL], priv->cru,
-					    CPLL, rate);
-		priv->cpll_hz = rockchip_pll_get_rate(&rk3562_pll_clks[CPLL],
-						      priv->cru, CPLL);
-		break;
 	case PLL_GPLL:
 		ret = rockchip_pll_set_rate(&rk3562_pll_clks[GPLL], priv->cru,
 					    GPLL, rate);
 		priv->gpll_hz = rockchip_pll_get_rate(&rk3562_pll_clks[GPLL],
 						      priv->cru, GPLL);
-		break;
-	case PLL_NPLL:
-		ret = rockchip_pll_set_rate(&rk3562_pll_clks[NPLL], priv->cru,
-					    NPLL, rate);
 		break;
 	case PLL_VPLL:
 		ret = rockchip_pll_set_rate(&rk3562_pll_clks[VPLL], priv->cru,
@@ -2540,6 +2347,10 @@ static ulong rk3562_clk_set_rate(struct clk *clk, ulong rate)
 		priv->vpll_hz = rockchip_pll_get_rate(&rk3562_pll_clks[VPLL],
 						      priv->cru,
 						      VPLL);
+		break;
+	case PLL_HPLL:
+		ret = rockchip_pll_set_rate(&rk3562_pll_clks[HPLL], priv->cru,
+					    HPLL, rate);
 		break;
 	case ACLK_BUS:
 	case PCLK_BUS:
@@ -2669,16 +2480,6 @@ static ulong rk3562_clk_set_rate(struct clk *clk, ulong rate)
 	case CLK_CRYPTO_NS_PKA:
 		ret = rk3562_crypto_set_rate(priv, clk->id, rate);
 		break;
-	case CPLL_500M:
-	case CPLL_333M:
-	case CPLL_250M:
-	case CPLL_125M:
-	case CPLL_100M:
-	case CPLL_62P5M:
-	case CPLL_50M:
-	case CPLL_25M:
-		ret = rk3562_cpll_div_set_rate(priv, clk->id, rate);
-		break;
 	default:
 		return -ENOENT;
 	}
@@ -2690,7 +2491,7 @@ static ulong rk3562_clk_set_rate(struct clk *clk, ulong rate)
 static int rk3562_gmac0_src_set_parent(struct clk *clk, struct clk *parent)
 {
 	struct rk3562_clk_priv *priv = dev_get_priv(clk->dev);
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 
 	if (parent->id == CLK_MAC0_2TOP)
 		rk_clrsetreg(&cru->clksel_con[31],
@@ -2707,7 +2508,7 @@ static int rk3562_gmac0_src_set_parent(struct clk *clk, struct clk *parent)
 static int rk3562_gmac1_src_set_parent(struct clk *clk, struct clk *parent)
 {
 	struct rk3562_clk_priv *priv = dev_get_priv(clk->dev);
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 
 	if (parent->id == CLK_MAC1_2TOP)
 		rk_clrsetreg(&cru->clksel_con[33],
@@ -2724,7 +2525,7 @@ static int rk3562_gmac1_src_set_parent(struct clk *clk, struct clk *parent)
 static int rk3562_gmac0_tx_rx_set_parent(struct clk *clk, struct clk *parent)
 {
 	struct rk3562_clk_priv *priv = dev_get_priv(clk->dev);
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 
 	if (parent->id == SCLK_GMAC0_RGMII_SPEED)
 		rk_clrsetreg(&cru->clksel_con[31],
@@ -2745,7 +2546,7 @@ static int rk3562_gmac0_tx_rx_set_parent(struct clk *clk, struct clk *parent)
 static int rk3562_gmac1_tx_rx_set_parent(struct clk *clk, struct clk *parent)
 {
 	struct rk3562_clk_priv *priv = dev_get_priv(clk->dev);
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 
 	if (parent->id == SCLK_GMAC1_RGMII_SPEED)
 		rk_clrsetreg(&cru->clksel_con[33],
@@ -2766,7 +2567,7 @@ static int rk3562_gmac1_tx_rx_set_parent(struct clk *clk, struct clk *parent)
 static int rk3562_dclk_vop_set_parent(struct clk *clk, struct clk *parent)
 {
 	struct rk3562_clk_priv *priv = dev_get_priv(clk->dev);
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 con_id;
 
 	switch (clk->id) {
@@ -2802,7 +2603,7 @@ static int rk3562_dclk_vop_set_parent(struct clk *clk, struct clk *parent)
 static int rk3562_rkvdec_set_parent(struct clk *clk, struct clk *parent)
 {
 	struct rk3562_clk_priv *priv = dev_get_priv(clk->dev);
-	struct rk3562_cru *cru = priv->cru;
+	struct rk3562_topcru *cru = priv->cru;
 	u32 con_id, mask, shift;
 
 	switch (clk->id) {
@@ -2906,7 +2707,6 @@ static void rk3562_clk_init(struct rk3562_clk_priv *priv)
 		printf("Fail to set the ACLK_BUS clock.\n");
 #endif
 
-	priv->ppll_hz = rk3562_pmu_pll_get_rate(priv, PPLL);
 	priv->hpll_hz = rk3562_pmu_pll_get_rate(priv, HPLL);
 }
 
@@ -2953,15 +2753,15 @@ static int rk3562_clk_bind(struct udevice *dev)
 		debug("Warning: No sysreset driver: ret=%d\n", ret);
 	} else {
 		priv = malloc(sizeof(struct sysreset_reg));
-		priv->glb_srst_fst_value = offsetof(struct rk3562_cru,
+		priv->glb_srst_fst_value = offsetof(struct rk3562_topcru,
 						    glb_srst_fst);
-		priv->glb_srst_snd_value = offsetof(struct rk3562_cru,
+		priv->glb_srst_snd_value = offsetof(struct rk3562_topcru,
 						    glb_srsr_snd);
 		dev_set_priv(sys_child, priv);
 	}
 
 #if CONFIG_IS_ENABLED(RESET_ROCKCHIP)
-	ret = offsetof(struct rk3562_cru, softrst_con[0]);
+	ret = offsetof(struct rk3562_topcru, softrst_con[0]);
 	ret = rockchip_reset_bind(dev, ret, 30);
 	if (ret)
 		debug("Warning: software reset driver bind failed\n");
@@ -2975,12 +2775,12 @@ static const struct udevice_id rk3562_clk_ids[] = {
 	{ }
 };
 
-U_BOOT_DRIVER(rockchip_rk3562_cru) = {
-	.name		= "rockchip_rk3562_cru",
+U_BOOT_DRIVER(rockchip_rk3562_topcru) = {
+	.name		= "rockchip_rk3562_topcru",
 	.id		= UCLASS_CLK,
 	.of_match	= rk3562_clk_ids,
-	.priv_auto = sizeof(struct rk3562_clk_priv),
-	.of_to_plat = rk3562_clk_ofdata_to_platdata,
+	.priv_auto	= sizeof(struct rk3562_clk_priv),
+	.of_to_plat	= rk3562_clk_ofdata_to_platdata,
 	.ops		= &rk3562_clk_ops,
 	.bind		= rk3562_clk_bind,
 	.probe		= rk3562_clk_probe,
